@@ -1,0 +1,55 @@
+# Unreal Engine
+
+# Build products
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.opendb
+*.sln
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# Xcode / macOS
+*.xcodeproj
+xcuserdata/
+*.xcworkspace
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Crash reports
+crashinfo--*
+# Compiled source files
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.exe
+
+# Temporary files
+*.tmp
+*.temp
+
+# Unreal autosaves and backups
+Saved/Autosaves/
+Saved/Backup/
+
+# Optional: Ignore packaged builds
+PackagedBuilds/
+
+# Optional: Ignore local config overrides
+Config/DefaultEditorPerProjectUserSettings.ini
