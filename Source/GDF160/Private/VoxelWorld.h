@@ -3,88 +3,35 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IPropertyTable.h"
-#include "Sector.h"
+#include "Cell.h"
 #include "SectorComponent.h"
+#include "SectorMesh.h"
 #include "GameFramework/Actor.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "VoxelWorld.generated.h"
 
-constexpr uint32 WorldSizeInSectorsXLog2 = 1;
-constexpr uint32 WorldSizeInSectorsX = 1 << WorldSizeInSectorsXLog2;
-constexpr uint32 WorldSizeInSectorsYLog2 = 1;
-constexpr uint32 WorldSizeInSectorsY = 1 << WorldSizeInSectorsYLog2;
+constexpr int32 WorldSizeInSectorsXLog2 = 1;
+constexpr int32 WorldSizeInSectorsX = 1 << WorldSizeInSectorsXLog2;
+constexpr int32 WorldSizeInSectorsYLog2 = 1;
+constexpr int32 WorldSizeInSectorsY = 1 << WorldSizeInSectorsYLog2;
 
-constexpr uint32 WorldAreaInSectors = WorldSizeInSectorsX * WorldSizeInSectorsY;
+constexpr int32 WorldAreaInSectors = WorldSizeInSectorsX * WorldSizeInSectorsY;
 
-FORCEINLINE bool
-GridCoordinateIsValid(const FIntVector3 GridCoordinate)
-{
-	return (
-		GridCoordinate.X >= 0 && GridCoordinate.X < WorldSizeInSectorsX * SectorSizeInCellsX &&
-		GridCoordinate.Y >= 0 && GridCoordinate.Y < WorldSizeInSectorsY * SectorSizeInCellsY &&
-		GridCoordinate.Z >= 0 && GridCoordinate.Z < SectorSizeInCellsZ
-	);
-}
+constexpr int32 SectorSizeInCellsXLog2 = 2;
+constexpr int32 SectorSizeInCellsX = 1 << SectorSizeInCellsXLog2;
+constexpr int32 SectorSizeInCellsYLog2 = 2;
+constexpr int32 SectorSizeInCellsY = 1 << SectorSizeInCellsYLog2;
+constexpr int32 SectorSizeInCellsZLog2 = 3;
+constexpr int32 SectorSizeInCellsZ = 1 << SectorSizeInCellsZLog2;
 
-FORCEINLINE FIntVector2
-SectorIndexToSectorCoordinate(const uint32 SectorIndex)
-{
-	return {
-		static_cast<int32>(SectorIndex % WorldSizeInSectorsX),
-		static_cast<int32>(SectorIndex / WorldSizeInSectorsY),
-	};
-}
+constexpr int32 SectorAreaInCells = SectorSizeInCellsX * SectorSizeInCellsY;
+constexpr int32 SectorVolumeInCells = SectorSizeInCellsX * SectorSizeInCellsY * SectorSizeInCellsZ;
 
-FORCEINLINE uint32
-SectorCoordinateToSectorIndex(const FIntVector2 SectorCoordinate)
-{
-	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
-}
+constexpr int32 WorldSizeInCellsX = WorldSizeInSectorsX * SectorSizeInCellsX;
+constexpr int32 WorldSizeInCellsY = WorldSizeInSectorsY * SectorSizeInCellsY;
+constexpr int32 WorldSizeInCellsZ = SectorSizeInCellsX;
 
-FORCEINLINE uint32
-GridCoordinateToSectorIndex(const FIntVector3 GridCoordinate)
-{
-	const FIntVector2 SectorCoordinate = {
-		GridCoordinate.X >> SectorSizeInCellsXLog2,
-		GridCoordinate.Y >> SectorSizeInCellsYLog2,
-	};
-	
-	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
-}
-
-FORCEINLINE uint32
-GridCoordinateToCellIndex(const FIntVector3 GridCoordinate)
-{
-	const uint32 WorldStrideX = 1;
-	const uint32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
-	const uint32 WorldStrideZ = WorldStrideY * (WorldSizeInSectorsY * SectorSizeInCellsY);
-	
-	return GridCoordinate.X * WorldStrideX + GridCoordinate.Y * WorldStrideY + GridCoordinate.Z * WorldStrideZ;
-}
-
-FORCEINLINE FIntVector3 
-SectorCoordinateToGridCoordinate(const FIntVector2 SectorCoordinate)
-{
-	return {
-		SectorCoordinate.X * SectorSizeInCellsX,
-		SectorCoordinate.Y * SectorSizeInCellsY,
-		0,
-	};
-}
-
-FORCEINLINE FIntVector3 
-IndicesToGridCoordinate(const int32 SectorIndex, const int32 CellIndex)
-{
-	const FIntVector2 SectorCoordinate = SectorIndexToSectorCoordinate(SectorIndex);
-	const FIntVector3 CellCoordinate = CellIndexToCellCoordinate(CellIndex);
-	
-	return {
-		SectorCoordinate.X * SectorSizeInCellsX + CellCoordinate.X,
-		SectorCoordinate.Y * SectorSizeInCellsY + CellCoordinate.Y,
-		CellCoordinate.Z,
-	};
-}
-
+constexpr int32 WorldVolumeInCells = WorldSizeInCellsX * WorldSizeInCellsY * WorldSizeInCellsZ; 
 
 UCLASS()
 class GDF160_API AVoxelWorld : public AActor
@@ -109,21 +56,34 @@ public:
 	UMaterialInterface* BlockMaterial;
 
 private:
-	TArray<FSector> SectorArray;
+	TArray<FCell> CellArray;
+	TArray<FSectorMesh> SectorMeshArray;
 	
 	UPROPERTY()
-	TMap<FIntVector2, USectorComponent*> SectorComponentCache;
+	TMap<FIntVector2, USectorComponent*> SectorComponentMap;
 	
 	void GenerateWorld();
-	void GenerateSector(const int32 SectorIndex);
 	
-	TBitArray<> CalculateNeighborSet(const FCell& Block);
+	uint8 CalculateNeighborSet(const FCell& Block);
 	
 	void BuildSectorMeshes();
-	void BuildSectorMesh(const int32 SectorIndex);
+	FSectorMesh BuildSectorMesh(int32 SectorIndex);
 	
 	void BuildSectorComponents();
-	void BuildSectorComponent(const FSector& Sector);
+	USectorComponent* BuildSectorComponent(int32 SectorIndex);
 	
-	FCell& GetCell(const FIntVector3 GridCoordinate);
+	FDynamicMesh3 BuildDynamicMesh(const FSectorMesh& SectorMesh);
+	
+	bool CellCoordinateIsValid(FIntVector3 GridCoordinate);
+	
+	FIntVector2 SectorIndexToSectorCoordinate(uint32 SectorIndex);
+	int32 SectorCoordinateToSectorIndex(FIntVector2 SectorCoordinate);
+	FIntVector3 SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate);
+	
+	int32 CellCoordinateToSectorIndex(FIntVector3 CellCoordinate);
+	int32 CellCoordinateToCellIndex(FIntVector3 CellCoordinate);
+	
+	FIntVector3 CellIndexToCellCoordinate(int32 CellIndex);
+	
+	FCell& GetCell(FIntVector3 CellCoordinate);
 };

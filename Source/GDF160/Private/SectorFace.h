@@ -6,7 +6,7 @@
 struct FSectorFace
 {
 	EBlockKind BlockKind;
-	EDirection Direction;
+	ECartesianDirection Direction;
 	
-	FVector Position;
+	FIntVector3 CellCoordinate;
 };
