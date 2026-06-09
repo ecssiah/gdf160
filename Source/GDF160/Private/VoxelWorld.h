@@ -10,22 +10,24 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "VoxelWorld.generated.h"
 
-constexpr int32 WorldSizeInSectorsXLog2 = 1;
-constexpr int32 WorldSizeInSectorsX = 1 << WorldSizeInSectorsXLog2;
-constexpr int32 WorldSizeInSectorsYLog2 = 1;
-constexpr int32 WorldSizeInSectorsY = 1 << WorldSizeInSectorsYLog2;
+constexpr float CellSizeInCentimeters = 100.0f;
 
-constexpr int32 WorldAreaInSectors = WorldSizeInSectorsX * WorldSizeInSectorsY;
-
-constexpr int32 SectorSizeInCellsXLog2 = 2;
+constexpr int32 SectorSizeInCellsXLog2 = 3;
 constexpr int32 SectorSizeInCellsX = 1 << SectorSizeInCellsXLog2;
-constexpr int32 SectorSizeInCellsYLog2 = 2;
+constexpr int32 SectorSizeInCellsYLog2 = 3;
 constexpr int32 SectorSizeInCellsY = 1 << SectorSizeInCellsYLog2;
 constexpr int32 SectorSizeInCellsZLog2 = 4;
 constexpr int32 SectorSizeInCellsZ = 1 << SectorSizeInCellsZLog2;
 
 constexpr int32 SectorAreaInCells = SectorSizeInCellsX * SectorSizeInCellsY;
 constexpr int32 SectorVolumeInCells = SectorSizeInCellsX * SectorSizeInCellsY * SectorSizeInCellsZ;
+
+constexpr int32 WorldSizeInSectorsXLog2 = 2;
+constexpr int32 WorldSizeInSectorsX = 1 << WorldSizeInSectorsXLog2;
+constexpr int32 WorldSizeInSectorsYLog2 = 2;
+constexpr int32 WorldSizeInSectorsY = 1 << WorldSizeInSectorsYLog2;
+
+constexpr int32 WorldAreaInSectors = WorldSizeInSectorsX * WorldSizeInSectorsY;
 
 constexpr int32 WorldSizeInCellsX = WorldSizeInSectorsX * SectorSizeInCellsX;
 constexpr int32 WorldSizeInCellsY = WorldSizeInSectorsY * SectorSizeInCellsY;
@@ -35,8 +37,12 @@ constexpr int32 WorldVolumeInCells = WorldSizeInCellsX * WorldSizeInCellsY * Wor
 
 constexpr int32 TileAtlasSizeU = 4;
 constexpr int32 TileAtlasSizeV = 4;
-constexpr int32 TileSizeX = 64;
-constexpr int32 TileSizeY = 64;
+
+constexpr int32 TileSizeInPixelsX = 64;
+constexpr int32 TileSizeInPixelsY = 64;
+
+constexpr float TileSizeU = 1.0f / static_cast<float>(TileAtlasSizeU);
+constexpr float TileSizeV = 1.0f / static_cast<float>(TileAtlasSizeV);
 
 UCLASS()
 class GDF160_API AVoxelWorld : public AActor

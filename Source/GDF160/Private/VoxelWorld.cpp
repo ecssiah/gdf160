@@ -225,34 +225,36 @@ AVoxelWorld::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 			static_cast<double>(SectorFace.CellCoordinate[2]),
 		};
 		
+		const float (&VertexArray)[4][3] = VoxelVertexArray[DirectionIndex];
+		
 		const FVector3d VertexPosition0 = { 
-			VoxelVertexArray[DirectionIndex][0][0], 
-			VoxelVertexArray[DirectionIndex][0][1], 
-			VoxelVertexArray[DirectionIndex][0][2] 
+			VertexArray[0][0], 
+			VertexArray[0][1], 
+			VertexArray[0][2] 
 		};
 		
 		const FVector3d VertexPosition1 = { 
-			VoxelVertexArray[DirectionIndex][1][0], 
-			VoxelVertexArray[DirectionIndex][1][1], 
-			VoxelVertexArray[DirectionIndex][1][2] 
+			VertexArray[1][0], 
+			VertexArray[1][1], 
+			VertexArray[1][2] 
 		};
 		
 		const FVector3d VertexPosition2 = { 
-			VoxelVertexArray[DirectionIndex][2][0], 
-			VoxelVertexArray[DirectionIndex][2][1], 
-			VoxelVertexArray[DirectionIndex][2][2] 
+			VertexArray[2][0], 
+			VertexArray[2][1], 
+			VertexArray[2][2] 
 		};
 		
 		const FVector3d VertexPosition3 = { 
-			VoxelVertexArray[DirectionIndex][3][0], 
-			VoxelVertexArray[DirectionIndex][3][1], 
-			VoxelVertexArray[DirectionIndex][3][2] 
+			VertexArray[3][0], 
+			VertexArray[3][1], 
+			VertexArray[3][2] 
 		};
 		
-		const int32 VertexIndex0 = DynamicMesh.AppendVertex(100.0 * (CellPosition + VertexPosition0));
-		const int32 VertexIndex1 = DynamicMesh.AppendVertex(100.0 * (CellPosition + VertexPosition1));
-		const int32 VertexIndex2 = DynamicMesh.AppendVertex(100.0 * (CellPosition + VertexPosition2));
-		const int32 VertexIndex3 = DynamicMesh.AppendVertex(100.0 * (CellPosition + VertexPosition3));
+		const int32 VertexIndex0 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition0));
+		const int32 VertexIndex1 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition1));
+		const int32 VertexIndex2 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition2));
+		const int32 VertexIndex3 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition3));
 		
 		const int32 TriangleIndex0 = DynamicMesh.AppendTriangle(VertexIndex0, VertexIndex1, VertexIndex2);
 		const int32 TriangleIndex1 = DynamicMesh.AppendTriangle(VertexIndex0, VertexIndex2, VertexIndex3);
@@ -260,22 +262,19 @@ AVoxelWorld::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 		UE::Geometry::FDynamicMeshUVOverlay* UVOverlay = DynamicMesh.Attributes()->PrimaryUV();
 		
 		const FVector2f UVCoordinate = BlockKindToUVCoordinate(SectorFace.BlockKind);
-		
-		constexpr float TileStrideX = 1.0f / static_cast<float>(TileAtlasSizeU);
-		constexpr float TileStrideY = 1.0f / static_cast<float>(TileAtlasSizeV);
-		
+
 		const FVector2f UVPosition0 = { 
 			UVCoordinate.X,
-			UVCoordinate.Y + TileStrideY,
+			UVCoordinate.Y + TileSizeV,
 		};
 		
 		const FVector2f UVPosition1 = { 
-			UVCoordinate.X + TileStrideX,
-			UVCoordinate.Y + TileStrideY,
+			UVCoordinate.X + TileSizeU,
+			UVCoordinate.Y + TileSizeV,
 		};
 		
 		const FVector2f UVPosition2 = { 
-			UVCoordinate.X + TileStrideX,
+			UVCoordinate.X + TileSizeU,
 			UVCoordinate.Y,
 		};
 		
