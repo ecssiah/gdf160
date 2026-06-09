@@ -33,6 +33,11 @@ constexpr int32 WorldSizeInCellsZ = SectorSizeInCellsX;
 
 constexpr int32 WorldVolumeInCells = WorldSizeInCellsX * WorldSizeInCellsY * WorldSizeInCellsZ; 
 
+constexpr int32 TileAtlasSizeU = 4;
+constexpr int32 TileAtlasSizeV = 4;
+constexpr int32 TileSizeX = 64;
+constexpr int32 TileSizeY = 64;
+
 UCLASS()
 class GDF160_API AVoxelWorld : public AActor
 {
@@ -86,4 +91,6 @@ private:
 	FIntVector3 CellIndexToCellCoordinate(int32 CellIndex);
 	
 	FCell& GetCell(FIntVector3 CellCoordinate);
+	
+	FVector2f BlockKindToUVCoordinate(EBlockKind BlockKind);
 };

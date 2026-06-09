@@ -259,24 +259,29 @@ AVoxelWorld::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 		
 		UE::Geometry::FDynamicMeshUVOverlay* UVOverlay = DynamicMesh.Attributes()->PrimaryUV();
 		
+		const FVector2f UVCoordinate = BlockKindToUVCoordinate(SectorFace.BlockKind);
+		
+		constexpr float TileStrideX = 1.0f / static_cast<float>(TileAtlasSizeU);
+		constexpr float TileStrideY = 1.0f / static_cast<float>(TileAtlasSizeV);
+		
 		const FVector2f UVPosition0 = { 
-			VoxelUVArray[DirectionIndex][0][0] / 4.0f, 
-			VoxelUVArray[DirectionIndex][0][1] / 4.0f, 
+			UVCoordinate.X,
+			UVCoordinate.Y + TileStrideY,
 		};
 		
 		const FVector2f UVPosition1 = { 
-			VoxelUVArray[DirectionIndex][1][0] / 4.0f, 
-			VoxelUVArray[DirectionIndex][1][1] / 4.0f, 
+			UVCoordinate.X + TileStrideX,
+			UVCoordinate.Y + TileStrideY,
 		};
 		
 		const FVector2f UVPosition2 = { 
-			VoxelUVArray[DirectionIndex][2][0] / 4.0f, 
-			VoxelUVArray[DirectionIndex][2][1] / 4.0f, 
+			UVCoordinate.X + TileStrideX,
+			UVCoordinate.Y,
 		};
 		
 		const FVector2f UVPosition3 = { 
-			VoxelUVArray[DirectionIndex][3][0] / 4.0f, 
-			VoxelUVArray[DirectionIndex][3][1] / 4.0f, 
+			UVCoordinate.X,
+			UVCoordinate.Y,
 		};
 		
 		const int32 UVIndex0 = UVOverlay->AppendElement(UVPosition0);
@@ -372,6 +377,16 @@ AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
 	const int32 CellIndex = CellCoordinateToCellIndex(CellCoordinate);
 	
 	return CellArray[CellIndex];
+}
+
+FVector2f AVoxelWorld::BlockKindToUVCoordinate(EBlockKind BlockKind)
+{
+	const int32 BlockKindIndex = static_cast<int32>(BlockKind) - 1;
+	
+	return {
+		static_cast<float>(BlockKindIndex % TileAtlasSizeU) / TileAtlasSizeU,
+		static_cast<float>(BlockKindIndex / TileAtlasSizeU) / TileAtlasSizeV,
+	};
 }
 
 
