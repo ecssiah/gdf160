@@ -4,8 +4,8 @@ UENUM()
 enum class ECartesianDirection : uint8
 {
 	PosX,
-	PosY,
 	NegX,
+	PosY,
 	NegY,
 	PosZ,
 	NegZ,
@@ -18,8 +18,8 @@ ENUM_RANGE_BY_COUNT(ECartesianDirection, ECartesianDirection::Count)
 const FIntVector3 DirectionOffsets[] =
 {
 	{ +1, +0, +0},
-	{ +0, +1, +0},
 	{ -1, +0, +0},
+	{ +0, +1, +0},
 	{ +0, -1, +0},
 	{ +0, +0, +1},
 	{ +0, +0, -1},
