@@ -35,11 +35,13 @@ constexpr int32 WorldSizeInCellsZ = SectorSizeInCellsX;
 
 constexpr int32 WorldVolumeInCells = WorldSizeInCellsX * WorldSizeInCellsY * WorldSizeInCellsZ; 
 
-constexpr int32 TileAtlasSizeU = 4;
-constexpr int32 TileAtlasSizeV = 4;
+constexpr int32 SectorViewRange = 1;
 
 constexpr int32 TileSizeInPixelsX = 64;
 constexpr int32 TileSizeInPixelsY = 64;
+
+constexpr int32 TileAtlasSizeU = 4;
+constexpr int32 TileAtlasSizeV = 4;
 
 constexpr float TileSizeU = 1.0f / static_cast<float>(TileAtlasSizeU);
 constexpr float TileSizeV = 1.0f / static_cast<float>(TileAtlasSizeV);
@@ -63,10 +65,15 @@ public:
 	
 	virtual void Tick(float DeltaTime) override;
 	
+	UPROPERTY()
+	APawn* PlayerPawn;
+	
 	UPROPERTY(EditAnywhere)
 	UMaterialInterface* BlockMaterial;
 
 private:
+	int32 PlayerSectorIndex;
+	
 	TArray<FCell> CellArray;
 	TArray<FSectorMesh> SectorMeshArray;
 	
@@ -85,16 +92,20 @@ private:
 	
 	FDynamicMesh3 BuildDynamicMesh(const FSectorMesh& SectorMesh);
 	
-	bool CellCoordinateIsValid(FIntVector3 GridCoordinate);
+	bool CellCoordinateIsValid(FIntVector3 CellCoordinate);
+	bool SectorCoordinateIsValid(FIntVector2 SectorCoordinate);
 	
 	FIntVector2 SectorIndexToSectorCoordinate(uint32 SectorIndex);
+	
 	int32 SectorCoordinateToSectorIndex(FIntVector2 SectorCoordinate);
 	FIntVector3 SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate);
 	
 	int32 CellCoordinateToSectorIndex(FIntVector3 CellCoordinate);
-	int32 CellCoordinateToCellIndex(FIntVector3 CellCoordinate);
 	
+	int32 CellCoordinateToCellIndex(FIntVector3 CellCoordinate);
 	FIntVector3 CellIndexToCellCoordinate(int32 CellIndex);
+	
+	FIntVector3 WorldLocationToCellCoordinate(FVector WorldLocation);
 	
 	FCell& GetCell(FIntVector3 CellCoordinate);
 	

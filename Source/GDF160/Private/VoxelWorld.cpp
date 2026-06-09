@@ -6,6 +6,7 @@
 #include "BlockKind.h"
 #include "CartesianDirection.h"
 #include "SectorMesh.h"
+#include "Kismet/GameplayStatics.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
 
@@ -27,6 +28,8 @@ AVoxelWorld::OnConstruction(const FTransform& Transform)
 	
 	GenerateWorld();
 	
+	PlayerSectorIndex = 0;
+	
 	BuildSectorMeshes();
 	BuildSectorComponents();
 }
@@ -36,6 +39,10 @@ void
 AVoxelWorld::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+	
+	SetActorLocation(FVector::ZeroVector);
 }
 
 // Called every frame
@@ -43,6 +50,22 @@ void
 AVoxelWorld::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (PlayerPawn)
+	{
+		const FVector PlayerLocation = PlayerPawn->GetActorLocation();
+		
+		const FIntVector CellCoordinate = WorldLocationToCellCoordinate(PlayerLocation);
+		
+		const int32 SectorIndex = CellCoordinateToSectorIndex(CellCoordinate);
+		
+		if (PlayerSectorIndex != SectorIndex)
+		{
+			PlayerSectorIndex = SectorIndex;
+			
+			BuildSectorComponents();
+		}
+	}
 }
 
 void 
@@ -162,13 +185,46 @@ AVoxelWorld::BuildSectorComponents()
 		return;
 	}
 	
-	SectorComponentMap.Empty();
+	TSet<FIntVector2> SectorCoordinateArrayCurrent;
+	TSet<FIntVector2> SectorCoordinateArrayNext;
 	
-	for (int32 SectorIndex = 0; SectorIndex < WorldAreaInSectors; SectorIndex++)
+	SectorComponentMap.GetKeys(SectorCoordinateArrayCurrent);
+	
+	const FIntVector2 PlayerSectorCoordinate = SectorIndexToSectorCoordinate(PlayerSectorIndex);
+	
+	for (int32 SectorDeltaY = -SectorViewRange; SectorDeltaY <= SectorViewRange; SectorDeltaY++)
 	{
-		const FIntVector2 SectorCoordinate = SectorIndexToSectorCoordinate(SectorIndex);
+		for (int32 SectorDeltaX = -SectorViewRange; SectorDeltaX <= SectorViewRange; SectorDeltaX++)
+		{
+			const FIntVector2 SectorCoordinate = PlayerSectorCoordinate + FIntVector2(SectorDeltaX, SectorDeltaY); 
+			
+			if (SectorCoordinateIsValid(SectorCoordinate))
+			{
+				SectorCoordinateArrayNext.Add(SectorCoordinate);
+			}
+		}
+	}
+	
+	TSet<FIntVector2> SectorsToRemove = SectorCoordinateArrayCurrent.Difference(SectorCoordinateArrayNext);
+	TSet<FIntVector2> SectorsToAdd = SectorCoordinateArrayNext.Difference(SectorCoordinateArrayCurrent);
+	
+	for (const FIntVector2 SectorCoordinate : SectorsToAdd)
+	{
+		const int32 SectorIndex = SectorCoordinateToSectorIndex(SectorCoordinate);
 		
 		SectorComponentMap.Add(SectorCoordinate, BuildSectorComponent(SectorIndex));
+	}
+	
+	for (const FIntVector2 SectorCoordinate : SectorsToRemove)
+	{
+		USectorComponent* SectorComponent = SectorComponentMap[SectorCoordinate];
+		
+		if (SectorComponent)
+		{
+			SectorComponent->DestroyComponent();
+		}
+		
+		SectorComponentMap.Remove(SectorCoordinate);
 	}
 }
 
@@ -305,6 +361,15 @@ AVoxelWorld::CellCoordinateIsValid(FIntVector3 CellCoordinate)
 	);
 }
 
+bool 
+AVoxelWorld::SectorCoordinateIsValid(FIntVector2 SectorCoordinate)
+{
+	return (
+		SectorCoordinate.X >= 0 && SectorCoordinate.X < WorldSizeInSectorsX &&
+		SectorCoordinate.Y >= 0 && SectorCoordinate.Y < WorldSizeInSectorsY
+	);
+}
+
 FIntVector2
 AVoxelWorld::SectorIndexToSectorCoordinate(uint32 SectorIndex)
 {
@@ -370,6 +435,16 @@ AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
 	return { CellX, CellY, CellZ };
 }
 
+FIntVector3 
+AVoxelWorld::WorldLocationToCellCoordinate(FVector WorldLocation)
+{
+	return {
+		FMath::FloorToInt32(WorldLocation.X / CellSizeInCentimeters) ,
+		FMath::FloorToInt32(WorldLocation.Y / CellSizeInCentimeters) ,
+		FMath::FloorToInt32(WorldLocation.Z / CellSizeInCentimeters) 
+	};
+}
+
 FCell& 
 AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
 {
@@ -378,7 +453,8 @@ AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
 	return CellArray[CellIndex];
 }
 
-FVector2f AVoxelWorld::BlockKindToUVCoordinate(EBlockKind BlockKind)
+FVector2f 
+AVoxelWorld::BlockKindToUVCoordinate(EBlockKind BlockKind)
 {
 	const int32 BlockKindIndex = static_cast<int32>(BlockKind) - 1;
 	
