@@ -12,9 +12,9 @@
 
 constexpr float CellSizeInCentimeters = 100.0f;
 
-constexpr int32 SectorSizeInCellsXLog2 = 3;
+constexpr int32 SectorSizeInCellsXLog2 = 4;
 constexpr int32 SectorSizeInCellsX = 1 << SectorSizeInCellsXLog2;
-constexpr int32 SectorSizeInCellsYLog2 = 3;
+constexpr int32 SectorSizeInCellsYLog2 = 4;
 constexpr int32 SectorSizeInCellsY = 1 << SectorSizeInCellsYLog2;
 constexpr int32 SectorSizeInCellsZLog2 = 4;
 constexpr int32 SectorSizeInCellsZ = 1 << SectorSizeInCellsZLog2;
@@ -52,15 +52,9 @@ class GDF160_API AVoxelWorld : public AActor
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this actor's properties
+	
 	AVoxelWorld();
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:
-	// Called every frame
+	
 	virtual void OnConstruction(const FTransform& Transform) override;
 	
 	virtual void Tick(float DeltaTime) override;
@@ -71,26 +65,19 @@ public:
 	UPROPERTY(EditAnywhere)
 	UMaterialInterface* BlockMaterial;
 
+protected:
+
+	virtual void BeginPlay() override;
+
 private:
-	int32 PlayerSectorIndex;
+	
+	FIntVector2 PlayerSectorCoordinate;
 	
 	TArray<FCell> CellArray;
 	TArray<FSectorMesh> SectorMeshArray;
 	
 	UPROPERTY()
 	TMap<FIntVector2, USectorComponent*> SectorComponentMap;
-	
-	void GenerateWorld();
-	
-	uint8 CalculateNeighborSet(const FCell& Block);
-	
-	void BuildSectorMeshes();
-	FSectorMesh BuildSectorMesh(int32 SectorIndex);
-	
-	void BuildSectorComponents();
-	USectorComponent* BuildSectorComponent(int32 SectorIndex);
-	
-	FDynamicMesh3 BuildDynamicMesh(const FSectorMesh& SectorMesh);
 	
 	bool CellCoordinateIsValid(FIntVector3 CellCoordinate);
 	bool SectorCoordinateIsValid(FIntVector2 SectorCoordinate);
@@ -106,8 +93,21 @@ private:
 	FIntVector3 CellIndexToCellCoordinate(int32 CellIndex);
 	
 	FIntVector3 WorldLocationToCellCoordinate(FVector WorldLocation);
+	FIntVector2 WorldLocationToSectorCoordinate(FVector WorldLocation);
 	
 	FCell& GetCell(FIntVector3 CellCoordinate);
 	
 	FVector2f BlockKindToUVCoordinate(EBlockKind BlockKind);
+	
+	void GenerateWorld();
+	
+	void BuildSectorMeshes();
+	FSectorMesh BuildSectorMesh(int32 SectorIndex);
+	
+	void BuildSectorComponents();
+	USectorComponent* BuildSectorComponent(int32 SectorIndex);
+	
+	uint8 CalculateNeighborSet(const FCell& Block);
+	
+	FDynamicMesh3 BuildDynamicMesh(const FSectorMesh& SectorMesh);
 };

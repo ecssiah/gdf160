@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "VoxelWorld.h"
 
 #include "BlockKind.h"
@@ -10,10 +7,8 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
 
-// Sets default values
 AVoxelWorld::AVoxelWorld()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	
 	USceneComponent* RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -25,27 +20,33 @@ void
 AVoxelWorld::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	
-	GenerateWorld();
-	
-	PlayerSectorIndex = 0;
-	
-	BuildSectorMeshes();
-	BuildSectorComponents();
 }
 
-// Called when the game starts or when spawned
 void 
 AVoxelWorld::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	const FVector StartLocation = FVector(
+		WorldSizeInCellsX / 2.0f * CellSizeInCentimeters,
+		WorldSizeInCellsY / 2.0f * CellSizeInCentimeters,
+		2000.0
+	);
+	
 	PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
 	
+	PlayerPawn->SetActorLocation(StartLocation);
+
+	PlayerSectorCoordinate = { -1, -1 };
+	
 	SetActorLocation(FVector::ZeroVector);
+	
+	GenerateWorld();
+	
+	BuildSectorMeshes();
+	BuildSectorComponents();
 }
 
-// Called every frame
 void 
 AVoxelWorld::Tick(float DeltaTime)
 {
@@ -55,17 +56,140 @@ AVoxelWorld::Tick(float DeltaTime)
 	{
 		const FVector PlayerLocation = PlayerPawn->GetActorLocation();
 		
-		const FIntVector CellCoordinate = WorldLocationToCellCoordinate(PlayerLocation);
+		const FIntVector2 SectorCoordinate = WorldLocationToSectorCoordinate(PlayerLocation);
 		
-		const int32 SectorIndex = CellCoordinateToSectorIndex(CellCoordinate);
-		
-		if (PlayerSectorIndex != SectorIndex)
+		if (PlayerSectorCoordinate != SectorCoordinate)
 		{
-			PlayerSectorIndex = SectorIndex;
+			PlayerSectorCoordinate = SectorCoordinate;
 			
 			BuildSectorComponents();
 		}
 	}
+}
+
+bool
+AVoxelWorld::CellCoordinateIsValid(FIntVector3 CellCoordinate)
+{
+	return (
+		CellCoordinate.X >= 0 && CellCoordinate.X < WorldSizeInCellsX &&
+		CellCoordinate.Y >= 0 && CellCoordinate.Y < WorldSizeInCellsY &&
+		CellCoordinate.Z >= 0 && CellCoordinate.Z < WorldSizeInCellsZ
+	);
+}
+
+bool 
+AVoxelWorld::SectorCoordinateIsValid(FIntVector2 SectorCoordinate)
+{
+	return (
+		SectorCoordinate.X >= 0 && SectorCoordinate.X < WorldSizeInSectorsX &&
+		SectorCoordinate.Y >= 0 && SectorCoordinate.Y < WorldSizeInSectorsY
+	);
+}
+
+FIntVector2
+AVoxelWorld::SectorIndexToSectorCoordinate(uint32 SectorIndex)
+{
+	return {
+		static_cast<int32>(SectorIndex % WorldSizeInSectorsX),
+		static_cast<int32>(SectorIndex / WorldSizeInSectorsX),
+	};
+}
+
+int32
+AVoxelWorld::SectorCoordinateToSectorIndex(const FIntVector2 SectorCoordinate)
+{
+	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
+}
+
+int32
+AVoxelWorld::CellCoordinateToSectorIndex(FIntVector3 CellCoordinate)
+{
+	const FIntVector2 SectorCoordinate = {
+		CellCoordinate.X >> SectorSizeInCellsXLog2,
+		CellCoordinate.Y >> SectorSizeInCellsYLog2,
+	};
+	
+	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
+}
+
+int32
+AVoxelWorld::CellCoordinateToCellIndex(FIntVector3 CellCoordinate)
+{
+	const uint32 WorldStrideX = 1;
+	const uint32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
+	const uint32 WorldStrideZ = WorldStrideY * (WorldSizeInSectorsY * SectorSizeInCellsY);
+	
+	return CellCoordinate.X * WorldStrideX + CellCoordinate.Y * WorldStrideY + CellCoordinate.Z * WorldStrideZ;
+}
+
+FIntVector3 
+AVoxelWorld::SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate)
+{
+	return {
+		SectorCoordinate.X * SectorSizeInCellsX,
+		SectorCoordinate.Y * SectorSizeInCellsY,
+		0,
+	};
+}
+
+FIntVector3 
+AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
+{
+	const int32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
+	const int32 WorldStrideZ = WorldSizeInSectorsX * SectorSizeInCellsX * WorldSizeInSectorsY * SectorSizeInCellsY;
+	
+	const int32 CellZ = CellIndex / WorldStrideZ;
+
+	CellIndex -= CellZ * WorldStrideZ;
+
+	const int32 CellY = CellIndex / WorldStrideY;
+
+	CellIndex -= CellY * WorldStrideY;
+
+	const int32 CellX = CellIndex;
+
+	return { CellX, CellY, CellZ };
+}
+
+FIntVector3 
+AVoxelWorld::WorldLocationToCellCoordinate(FVector WorldLocation)
+{
+	return {
+		FMath::FloorToInt32(WorldLocation.X / CellSizeInCentimeters),
+		FMath::FloorToInt32(WorldLocation.Y / CellSizeInCentimeters),
+		FMath::FloorToInt32(WorldLocation.Z / CellSizeInCentimeters),
+	};
+}
+
+FIntVector2
+AVoxelWorld::WorldLocationToSectorCoordinate(FVector WorldLocation)
+{
+	const FIntVector CellCoordinate = WorldLocationToCellCoordinate(WorldLocation);
+
+	return {
+		CellCoordinate.X >> SectorSizeInCellsXLog2,
+		CellCoordinate.Y >> SectorSizeInCellsYLog2,
+	};
+}
+
+
+FCell& 
+AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
+{
+	const int32 CellIndex = CellCoordinateToCellIndex(CellCoordinate);
+	
+	return CellArray[CellIndex];
+}
+
+FVector2f 
+AVoxelWorld::BlockKindToUVCoordinate(EBlockKind BlockKind)
+{
+	const int32 BlockKindIndex = static_cast<int32>(BlockKind) - 1;
+	
+	return {
+		static_cast<float>(BlockKindIndex % TileAtlasSizeU) / TileAtlasSizeU,
+		static_cast<float>(BlockKindIndex / TileAtlasSizeU) / TileAtlasSizeV,
+	};
 }
 
 void 
@@ -77,7 +201,7 @@ AVoxelWorld::GenerateWorld()
 	
 	for (int32 CellIndex = 0; CellIndex < CellArray.Num(); CellIndex++)
 	{
-		const EBlockKind BlockKind = static_cast<EBlockKind>(FMath::RandRange(0, BlockKindCount - 1));
+		const EBlockKind BlockKind = static_cast<EBlockKind>(FMath::RandRange(1, BlockKindCount - 1));
 	
 		FCell& Cell = CellArray[CellIndex];
 	
@@ -124,7 +248,9 @@ AVoxelWorld::BuildSectorMeshes()
 	
 	for (int32 SectorIndex = 0; SectorIndex < WorldAreaInSectors; SectorIndex++)
 	{
-		SectorMeshArray.Add(BuildSectorMesh(SectorIndex));
+		FSectorMesh SectorMesh = BuildSectorMesh(SectorIndex);
+		
+		SectorMeshArray.Add(SectorMesh);
 	}
 }
 
@@ -185,43 +311,44 @@ AVoxelWorld::BuildSectorComponents()
 		return;
 	}
 	
-	TSet<FIntVector2> SectorCoordinateArrayCurrent;
-	TSet<FIntVector2> SectorCoordinateArrayNext;
+	TSet<FIntVector2> SectorCoordinateSetCurrent;
+	TSet<FIntVector2> SectorCoordinateSetNext;
 	
-	SectorComponentMap.GetKeys(SectorCoordinateArrayCurrent);
-	
-	const FIntVector2 PlayerSectorCoordinate = SectorIndexToSectorCoordinate(PlayerSectorIndex);
+	SectorComponentMap.GetKeys(SectorCoordinateSetCurrent);
 	
 	for (int32 SectorDeltaY = -SectorViewRange; SectorDeltaY <= SectorViewRange; SectorDeltaY++)
 	{
 		for (int32 SectorDeltaX = -SectorViewRange; SectorDeltaX <= SectorViewRange; SectorDeltaX++)
 		{
-			const FIntVector2 SectorCoordinate = PlayerSectorCoordinate + FIntVector2(SectorDeltaX, SectorDeltaY); 
+			const FIntVector2 SectorDelta = { SectorDeltaX, SectorDeltaY };
+			const FIntVector2 SectorCoordinate = PlayerSectorCoordinate + SectorDelta; 
 			
 			if (SectorCoordinateIsValid(SectorCoordinate))
 			{
-				SectorCoordinateArrayNext.Add(SectorCoordinate);
+				SectorCoordinateSetNext.Add(SectorCoordinate);
 			}
 		}
 	}
 	
-	TSet<FIntVector2> SectorsToRemove = SectorCoordinateArrayCurrent.Difference(SectorCoordinateArrayNext);
-	TSet<FIntVector2> SectorsToAdd = SectorCoordinateArrayNext.Difference(SectorCoordinateArrayCurrent);
+	TSet<FIntVector2> SectorsToAdd = SectorCoordinateSetNext.Difference(SectorCoordinateSetCurrent);
+	TSet<FIntVector2> SectorsToRemove = SectorCoordinateSetCurrent.Difference(SectorCoordinateSetNext);
 	
 	for (const FIntVector2 SectorCoordinate : SectorsToAdd)
 	{
 		const int32 SectorIndex = SectorCoordinateToSectorIndex(SectorCoordinate);
 		
-		SectorComponentMap.Add(SectorCoordinate, BuildSectorComponent(SectorIndex));
+		USectorComponent* SectorComponent = BuildSectorComponent(SectorIndex);
+		
+		SectorComponentMap.Add(SectorCoordinate, SectorComponent);
 	}
 	
 	for (const FIntVector2 SectorCoordinate : SectorsToRemove)
 	{
-		USectorComponent* SectorComponent = SectorComponentMap[SectorCoordinate];
+		USectorComponent** SectorComponent = SectorComponentMap.Find(SectorCoordinate);
 		
 		if (SectorComponent)
 		{
-			SectorComponent->DestroyComponent();
+			(*SectorComponent)->DestroyComponent();
 		}
 		
 		SectorComponentMap.Remove(SectorCoordinate);
@@ -350,118 +477,3 @@ AVoxelWorld::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 
 	return DynamicMesh;
 }
-
-bool
-AVoxelWorld::CellCoordinateIsValid(FIntVector3 CellCoordinate)
-{
-	return (
-		CellCoordinate.X >= 0 && CellCoordinate.X < WorldSizeInCellsX &&
-		CellCoordinate.Y >= 0 && CellCoordinate.Y < WorldSizeInCellsY &&
-		CellCoordinate.Z >= 0 && CellCoordinate.Z < WorldSizeInCellsZ
-	);
-}
-
-bool 
-AVoxelWorld::SectorCoordinateIsValid(FIntVector2 SectorCoordinate)
-{
-	return (
-		SectorCoordinate.X >= 0 && SectorCoordinate.X < WorldSizeInSectorsX &&
-		SectorCoordinate.Y >= 0 && SectorCoordinate.Y < WorldSizeInSectorsY
-	);
-}
-
-FIntVector2
-AVoxelWorld::SectorIndexToSectorCoordinate(uint32 SectorIndex)
-{
-	return {
-		static_cast<int32>(SectorIndex % WorldSizeInSectorsX),
-		static_cast<int32>(SectorIndex / WorldSizeInSectorsX),
-	};
-}
-
-int32
-AVoxelWorld::SectorCoordinateToSectorIndex(const FIntVector2 SectorCoordinate)
-{
-	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
-}
-
-int32
-AVoxelWorld::CellCoordinateToSectorIndex(FIntVector3 CellCoordinate)
-{
-	const FIntVector2 SectorCoordinate = {
-		CellCoordinate.X >> SectorSizeInCellsXLog2,
-		CellCoordinate.Y >> SectorSizeInCellsYLog2,
-	};
-	
-	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
-}
-
-int32
-AVoxelWorld::CellCoordinateToCellIndex(FIntVector3 CellCoordinate)
-{
-	const uint32 WorldStrideX = 1;
-	const uint32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
-	const uint32 WorldStrideZ = WorldStrideY * (WorldSizeInSectorsY * SectorSizeInCellsY);
-	
-	return CellCoordinate.X * WorldStrideX + CellCoordinate.Y * WorldStrideY + CellCoordinate.Z * WorldStrideZ;
-}
-
-FIntVector3 
-AVoxelWorld::SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate)
-{
-	return {
-		SectorCoordinate.X * SectorSizeInCellsX,
-		SectorCoordinate.Y * SectorSizeInCellsY,
-		0,
-	};
-}
-
-FIntVector3 
-AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
-{
-	const int32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
-	const int32 WorldStrideZ = WorldSizeInSectorsX * SectorSizeInCellsX * WorldSizeInSectorsY * SectorSizeInCellsY;
-	
-	const int32 CellZ = CellIndex / WorldStrideZ;
-
-	CellIndex -= CellZ * WorldStrideZ;
-
-	const int32 CellY = CellIndex / WorldStrideY;
-
-	CellIndex -= CellY * WorldStrideY;
-
-	const int32 CellX = CellIndex;
-
-	return { CellX, CellY, CellZ };
-}
-
-FIntVector3 
-AVoxelWorld::WorldLocationToCellCoordinate(FVector WorldLocation)
-{
-	return {
-		FMath::FloorToInt32(WorldLocation.X / CellSizeInCentimeters) ,
-		FMath::FloorToInt32(WorldLocation.Y / CellSizeInCentimeters) ,
-		FMath::FloorToInt32(WorldLocation.Z / CellSizeInCentimeters) 
-	};
-}
-
-FCell& 
-AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
-{
-	const int32 CellIndex = CellCoordinateToCellIndex(CellCoordinate);
-	
-	return CellArray[CellIndex];
-}
-
-FVector2f 
-AVoxelWorld::BlockKindToUVCoordinate(EBlockKind BlockKind)
-{
-	const int32 BlockKindIndex = static_cast<int32>(BlockKind) - 1;
-	
-	return {
-		static_cast<float>(BlockKindIndex % TileAtlasSizeU) / TileAtlasSizeU,
-		static_cast<float>(BlockKindIndex / TileAtlasSizeU) / TileAtlasSizeV,
-	};
-}
-
-
