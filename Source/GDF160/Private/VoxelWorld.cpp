@@ -275,7 +275,7 @@ AVoxelWorld::BuildSectorMesh(const int32 SectorIndex)
 				
 				if (CellCoordinateIsValid(CellCoordinate))
 				{
-					FCell& Cell = GetCell(CellCoordinate);
+					const FCell& Cell = GetCell(CellCoordinate);
 
 					if (Cell.BlockKind == EBlockKind::None)
 					{
