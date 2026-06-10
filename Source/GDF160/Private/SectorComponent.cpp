@@ -2,7 +2,6 @@
 
 #include "Cell.h"
 #include "Constants.h"
-#include "SectorFace.h"
 
 FDynamicMesh3
 USectorComponent::BuildDynamicMesh(const FSectorMesh& SectorMesh)

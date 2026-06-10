@@ -1,6 +1,15 @@
 #pragma once
 
-#include "SectorFace.h"
+#include "BlockKind.h"
+#include "CartesianDirection.h"
+
+struct FSectorFace
+{
+	EBlockKind BlockKind;
+	ECartesianDirection Direction;
+	
+	FIntVector3 CellCoordinate;
+};
 
 struct FSectorMesh
 {
