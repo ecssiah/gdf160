@@ -59,6 +59,8 @@ AVoxelWorld::BeginPlay()
 			FAttachmentTransformRules::KeepRelativeTransform
 		);
 		
+		SectorComponent->SetMaterial(0, BlockMaterial);
+		
 		FreeSectorComponentArray.Add(SectorComponent);
 	}
 	
@@ -417,9 +419,7 @@ AVoxelWorld::AddSectorComponent(const FIntVector2& SectorCoordinate)
 	SectorComponent->SetCollisionResponseToAllChannels(ECR_Block);
 
 	SectorComponent->SetComplexAsSimpleCollisionEnabled(true, true);
-			
-	SectorComponent->SetMaterial(0, BlockMaterial);
-		
+	
 	FDynamicMesh3 DynamicMesh = USectorComponent::BuildDynamicMesh(SectorMesh);
 	SectorComponent->GetDynamicMesh()->SetMesh(MoveTemp(DynamicMesh));
 	SectorComponent->NotifyMeshUpdated();
