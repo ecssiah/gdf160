@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -68,7 +66,10 @@ private:
 	void BuildSectorMeshes();
 	FSectorMesh BuildSectorMesh(int32 SectorIndex);
 	
-	void BuildSectorComponents();
+	void UpdateSectorComponents();
+	
+	void AddSectorComponent(const FIntVector2& SectorCoordinate);
+	void RemoveSectorComponent(const FIntVector2& SectorCoordinate);
 	
 	uint8 CalculateNeighborSet(const FCell& Block);
 };

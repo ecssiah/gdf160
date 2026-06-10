@@ -6,6 +6,8 @@
 #include "SectorMesh.h"
 #include "Kismet/GameplayStatics.h"
 
+#include "FastNoiseLite/FastNoiseLite.h"
+
 AVoxelWorld::AVoxelWorld()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -60,7 +62,7 @@ AVoxelWorld::BeginPlay()
 		FreeSectorComponentArray.Add(SectorComponent);
 	}
 	
-	BuildSectorComponents();
+	UpdateSectorComponents();
 }
 
 void 
@@ -78,7 +80,7 @@ AVoxelWorld::Tick(float DeltaTime)
 		{
 			PlayerSectorCoordinate = SectorCoordinate;
 			
-			BuildSectorComponents();
+			UpdateSectorComponents();
 		}
 	}
 }
@@ -202,16 +204,47 @@ AVoxelWorld::GenerateWorld()
 {
 	CellArray.SetNumUninitialized(WorldVolumeInCells);
 	
+	FastNoiseLite HeightNoise;
+	HeightNoise.SetSeed(1337);
+	HeightNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+	HeightNoise.SetFrequency(0.03f);
+	HeightNoise.SetFractalType(FastNoiseLite::FractalType_FBm);
+	HeightNoise.SetFractalOctaves(4);
+	HeightNoise.SetFractalLacunarity(2.0f);
+	HeightNoise.SetFractalGain(0.5f);
+	
+	constexpr int32 MinimumTerrainHeight = 4;
+	constexpr int32 MaximumTerrainHeight = 20;
+	
 	const int32 BlockKindCount = static_cast<int32>(EBlockKind::Count);
 	
 	for (int32 CellIndex = 0; CellIndex < CellArray.Num(); CellIndex++)
 	{
-		const EBlockKind BlockKind = static_cast<EBlockKind>(FMath::RandRange(1, BlockKindCount - 1));
-	
+		const FIntVector3 CellCoordinate = CellIndexToCellCoordinate(CellIndex);
+		
+		const float NoiseValue = HeightNoise.GetNoise(
+			static_cast<float>(CellCoordinate.X),
+			static_cast<float>(CellCoordinate.Y)
+		);
+		
+		const float NormalizedNoiseValue = (NoiseValue + 1.0f) * 0.5f;
+		
+		const int32 TerrainHeight = FMath::RoundToInt32(
+			FMath::Lerp(
+				static_cast<float>(MinimumTerrainHeight),
+				static_cast<float>(MaximumTerrainHeight),
+				NormalizedNoiseValue
+			)
+		);
+		
 		FCell& Cell = CellArray[CellIndex];
-	
+		
+		const EBlockKind BlockKind = static_cast<EBlockKind>(FMath::RandRange(1, BlockKindCount - 1));
+		
 		Cell.CellIndex = CellIndex;
-		Cell.BlockKind = BlockKind;
+		Cell.BlockKind = CellCoordinate.Z <= TerrainHeight
+			? BlockKind
+			: EBlockKind::None;
 	}
 	
 	for (FCell& Cell : CellArray)
@@ -309,7 +342,7 @@ AVoxelWorld::BuildSectorMesh(const int32 SectorIndex)
 }
 
 void 
-AVoxelWorld::BuildSectorComponents()
+AVoxelWorld::UpdateSectorComponents()
 {
 	if (BlockMaterial == nullptr)
 	{
@@ -340,46 +373,56 @@ AVoxelWorld::BuildSectorComponents()
 	
 	for (const FIntVector2 SectorCoordinate : SectorsToRemove)
 	{
-		TObjectPtr<USectorComponent>* FoundComponent = SectorComponentMap.Find(SectorCoordinate);
-		
-		if (FoundComponent && *FoundComponent)
-		{
-			USectorComponent* SectorComponent = *FoundComponent;
-			
-			SectorComponent->SetVisibility(false);
-			SectorComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			
-			SectorComponent->UnregisterComponent();
-			
-			FreeSectorComponentArray.Add(SectorComponent);
-			SectorComponentMap.Remove(SectorCoordinate);
-		}
+		RemoveSectorComponent(SectorCoordinate);
 	}
 	
 	for (const FIntVector2 SectorCoordinate : SectorsToAdd)
 	{
-		const int32 SectorIndex = SectorCoordinateToSectorIndex(SectorCoordinate);
-		const FSectorMesh& SectorMesh = SectorMeshArray[SectorIndex];
-		
-		USectorComponent* SectorComponent = FreeSectorComponentArray.Pop();
-		
-		SectorComponent->RegisterComponent();
-
-		SectorComponent->SetVisibility(true);
-		SectorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		SectorComponent->SetCollisionObjectType(ECC_WorldStatic);
-		SectorComponent->SetCollisionResponseToAllChannels(ECR_Block);
-
-		SectorComponent->SetComplexAsSimpleCollisionEnabled(true, true);
-			
-		SectorComponent->SetMaterial(0, BlockMaterial);
-		
-		FDynamicMesh3 DynamicMesh = USectorComponent::BuildDynamicMesh(SectorMesh);
-		SectorComponent->GetDynamicMesh()->SetMesh(MoveTemp(DynamicMesh));
-		SectorComponent->NotifyMeshUpdated();
-		
-		SectorComponentMap.Add(SectorCoordinate, SectorComponent);
+		AddSectorComponent(SectorCoordinate);
 	}
-	
+}
 
+void
+AVoxelWorld::RemoveSectorComponent(const FIntVector2& SectorCoordinate)
+{
+	TObjectPtr<USectorComponent>* FoundComponent = SectorComponentMap.Find(SectorCoordinate);
+		
+	if (FoundComponent && *FoundComponent)
+	{
+		USectorComponent* SectorComponent = *FoundComponent;
+			
+		SectorComponent->SetVisibility(false);
+		SectorComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			
+		SectorComponent->UnregisterComponent();
+			
+		FreeSectorComponentArray.Add(SectorComponent);
+		SectorComponentMap.Remove(SectorCoordinate);
+	}
+}
+
+void
+AVoxelWorld::AddSectorComponent(const FIntVector2& SectorCoordinate)
+{
+	const int32 SectorIndex = SectorCoordinateToSectorIndex(SectorCoordinate);
+	const FSectorMesh& SectorMesh = SectorMeshArray[SectorIndex];
+		
+	USectorComponent* SectorComponent = FreeSectorComponentArray.Pop();
+		
+	SectorComponent->RegisterComponent();
+
+	SectorComponent->SetVisibility(true);
+	SectorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	SectorComponent->SetCollisionObjectType(ECC_WorldStatic);
+	SectorComponent->SetCollisionResponseToAllChannels(ECR_Block);
+
+	SectorComponent->SetComplexAsSimpleCollisionEnabled(true, true);
+			
+	SectorComponent->SetMaterial(0, BlockMaterial);
+		
+	FDynamicMesh3 DynamicMesh = USectorComponent::BuildDynamicMesh(SectorMesh);
+	SectorComponent->GetDynamicMesh()->SetMesh(MoveTemp(DynamicMesh));
+	SectorComponent->NotifyMeshUpdated();
+		
+	SectorComponentMap.Add(SectorCoordinate, SectorComponent);
 }
