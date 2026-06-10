@@ -2,10 +2,9 @@
 
 #include "BlockKind.h"
 #include "CartesianDirection.h"
+#include "Constants.h"
 #include "SectorMesh.h"
 #include "Kismet/GameplayStatics.h"
-#include "DynamicMesh/DynamicMeshAttributeSet.h"
-#include "DynamicMesh/DynamicMeshOverlay.h"
 
 AVoxelWorld::AVoxelWorld()
 {
@@ -44,6 +43,23 @@ AVoxelWorld::BeginPlay()
 	GenerateWorld();
 	
 	BuildSectorMeshes();
+	
+	const int32 SectorCacheSize = FMath::Pow(2.0f * SectorViewRange + 1, 2);
+	
+	for (int32 CacheIndex = 0; CacheIndex < SectorCacheSize; CacheIndex++)
+	{
+		const FString ComponentName = FString::Printf(TEXT("SectorMesh_%d"), FreeSectorComponentArray.Num() + 1);
+			
+		USectorComponent* SectorComponent = NewObject<USectorComponent>(this, *ComponentName);
+		
+		SectorComponent->AttachToComponent(
+			RootComponent,
+			FAttachmentTransformRules::KeepRelativeTransform
+		);
+		
+		FreeSectorComponentArray.Add(SectorComponent);
+	}
+	
 	BuildSectorComponents();
 }
 
@@ -179,17 +195,6 @@ AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
 	const int32 CellIndex = CellCoordinateToCellIndex(CellCoordinate);
 	
 	return CellArray[CellIndex];
-}
-
-FVector2f 
-AVoxelWorld::BlockKindToUVCoordinate(EBlockKind BlockKind)
-{
-	const int32 BlockKindIndex = static_cast<int32>(BlockKind) - 1;
-	
-	return {
-		static_cast<float>(BlockKindIndex % TileAtlasSizeU) / TileAtlasSizeU,
-		static_cast<float>(BlockKindIndex / TileAtlasSizeU) / TileAtlasSizeV,
-	};
 }
 
 void 
@@ -330,150 +335,51 @@ AVoxelWorld::BuildSectorComponents()
 		}
 	}
 	
-	TSet<FIntVector2> SectorsToAdd = SectorCoordinateSetNext.Difference(SectorCoordinateSetCurrent);
 	TSet<FIntVector2> SectorsToRemove = SectorCoordinateSetCurrent.Difference(SectorCoordinateSetNext);
+	TSet<FIntVector2> SectorsToAdd = SectorCoordinateSetNext.Difference(SectorCoordinateSetCurrent);
+	
+	for (const FIntVector2 SectorCoordinate : SectorsToRemove)
+	{
+		TObjectPtr<USectorComponent>* FoundComponent = SectorComponentMap.Find(SectorCoordinate);
+		
+		if (FoundComponent && *FoundComponent)
+		{
+			USectorComponent* SectorComponent = *FoundComponent;
+			
+			SectorComponent->SetVisibility(false);
+			SectorComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			
+			SectorComponent->UnregisterComponent();
+			
+			FreeSectorComponentArray.Add(SectorComponent);
+			SectorComponentMap.Remove(SectorCoordinate);
+		}
+	}
 	
 	for (const FIntVector2 SectorCoordinate : SectorsToAdd)
 	{
 		const int32 SectorIndex = SectorCoordinateToSectorIndex(SectorCoordinate);
+		const FSectorMesh& SectorMesh = SectorMeshArray[SectorIndex];
 		
-		USectorComponent* SectorComponent = BuildSectorComponent(SectorIndex);
+		USectorComponent* SectorComponent = FreeSectorComponentArray.Pop();
+		
+		SectorComponent->RegisterComponent();
+
+		SectorComponent->SetVisibility(true);
+		SectorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		SectorComponent->SetCollisionObjectType(ECC_WorldStatic);
+		SectorComponent->SetCollisionResponseToAllChannels(ECR_Block);
+
+		SectorComponent->SetComplexAsSimpleCollisionEnabled(true, true);
+			
+		SectorComponent->SetMaterial(0, BlockMaterial);
+		
+		FDynamicMesh3 DynamicMesh = USectorComponent::BuildDynamicMesh(SectorMesh);
+		SectorComponent->GetDynamicMesh()->SetMesh(MoveTemp(DynamicMesh));
+		SectorComponent->NotifyMeshUpdated();
 		
 		SectorComponentMap.Add(SectorCoordinate, SectorComponent);
 	}
 	
-	for (const FIntVector2 SectorCoordinate : SectorsToRemove)
-	{
-		USectorComponent** SectorComponent = SectorComponentMap.Find(SectorCoordinate);
-		
-		if (SectorComponent)
-		{
-			(*SectorComponent)->DestroyComponent();
-		}
-		
-		SectorComponentMap.Remove(SectorCoordinate);
-	}
-}
 
-USectorComponent*
-AVoxelWorld::BuildSectorComponent(int32 SectorIndex)
-{
-	const FSectorMesh& SectorMesh = SectorMeshArray[SectorIndex];
-	
-	const FString ComponentName = FString::Printf(TEXT("SectorMesh_%d"), SectorIndex);
-
-	USectorComponent* SectorComponent = NewObject<USectorComponent>(this, *ComponentName);
-		
-	SectorComponent->RegisterComponent();
-		
-	SectorComponent->AttachToComponent(
-		RootComponent,
-		FAttachmentTransformRules::KeepRelativeTransform
-	);
-	
-	SectorComponent->SetMaterial(0, BlockMaterial);
-	
-	SectorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	SectorComponent->SetCollisionObjectType(ECC_WorldStatic);
-	SectorComponent->SetCollisionResponseToAllChannels(ECR_Block);
-	
-	SectorComponent->SetComplexAsSimpleCollisionEnabled(true, true);
-	
-	FDynamicMesh3 DynamicMesh = BuildDynamicMesh(SectorMesh);
-	
-	SectorComponent->GetDynamicMesh()->SetMesh(MoveTemp(DynamicMesh));
-	
-	return SectorComponent;
-}
-
-FDynamicMesh3
-AVoxelWorld::BuildDynamicMesh(const FSectorMesh& SectorMesh)
-{
-	FDynamicMesh3 DynamicMesh;
-	
-	DynamicMesh.EnableAttributes();
-	
-	for (const FSectorFace& SectorFace : SectorMesh.SectorFaceArray)
-	{
-		if (SectorFace.BlockKind == EBlockKind::None)
-		{
-			continue;
-		}
-		
-		const int32 DirectionIndex = static_cast<int32>(SectorFace.Direction);
-		
-		const FVector3d CellPosition = { 
-			static_cast<double>(SectorFace.CellCoordinate[0]), 
-			static_cast<double>(SectorFace.CellCoordinate[1]), 
-			static_cast<double>(SectorFace.CellCoordinate[2]),
-		};
-		
-		const float (&VertexArray)[4][3] = VoxelVertexArray[DirectionIndex];
-		
-		const FVector3d VertexPosition0 = { 
-			VertexArray[0][0], 
-			VertexArray[0][1], 
-			VertexArray[0][2] 
-		};
-		
-		const FVector3d VertexPosition1 = { 
-			VertexArray[1][0], 
-			VertexArray[1][1], 
-			VertexArray[1][2] 
-		};
-		
-		const FVector3d VertexPosition2 = { 
-			VertexArray[2][0], 
-			VertexArray[2][1], 
-			VertexArray[2][2] 
-		};
-		
-		const FVector3d VertexPosition3 = { 
-			VertexArray[3][0], 
-			VertexArray[3][1], 
-			VertexArray[3][2] 
-		};
-		
-		const int32 VertexIndex0 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition0));
-		const int32 VertexIndex1 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition1));
-		const int32 VertexIndex2 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition2));
-		const int32 VertexIndex3 = DynamicMesh.AppendVertex(CellSizeInCentimeters * (CellPosition + VertexPosition3));
-		
-		const int32 TriangleIndex0 = DynamicMesh.AppendTriangle(VertexIndex0, VertexIndex1, VertexIndex2);
-		const int32 TriangleIndex1 = DynamicMesh.AppendTriangle(VertexIndex0, VertexIndex2, VertexIndex3);
-		
-		UE::Geometry::FDynamicMeshUVOverlay* UVOverlay = DynamicMesh.Attributes()->PrimaryUV();
-		
-		const FVector2f UVCoordinate = BlockKindToUVCoordinate(SectorFace.BlockKind);
-
-		const FVector2f UVPosition0 = { 
-			UVCoordinate.X,
-			UVCoordinate.Y + TileSizeV,
-		};
-		
-		const FVector2f UVPosition1 = { 
-			UVCoordinate.X + TileSizeU,
-			UVCoordinate.Y + TileSizeV,
-		};
-		
-		const FVector2f UVPosition2 = { 
-			UVCoordinate.X + TileSizeU,
-			UVCoordinate.Y,
-		};
-		
-		const FVector2f UVPosition3 = { 
-			UVCoordinate.X,
-			UVCoordinate.Y,
-		};
-		
-		const int32 UVIndex0 = UVOverlay->AppendElement(UVPosition0);
-		const int32 UVIndex1 = UVOverlay->AppendElement(UVPosition1);
-		const int32 UVIndex2 = UVOverlay->AppendElement(UVPosition2);
-		const int32 UVIndex3 = UVOverlay->AppendElement(UVPosition3);
-	
-		UVOverlay->SetTriangle(TriangleIndex0, UE::Geometry::FIndex3i(UVIndex0, UVIndex1, UVIndex2));
-		UVOverlay->SetTriangle(TriangleIndex1, UE::Geometry::FIndex3i(UVIndex0, UVIndex2, UVIndex3));
-	}
-
-	return DynamicMesh;
 }
