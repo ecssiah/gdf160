@@ -1,16 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SectorMesh.h"
+#include "WorldData.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/DynamicMesh3.h"
+
 #include "SectorComponent.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class USectorComponent : public UDynamicMeshComponent
 {

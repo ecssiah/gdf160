@@ -1,10 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Cell.h"
+#include "WorldData.h"
 #include "SectorComponent.h"
-#include "SectorMesh.h"
-#include "GameFramework/Actor.h"
+
 #include "VoxelWorld.generated.h"
 
 UCLASS()
@@ -15,8 +14,6 @@ class GDF160_API AVoxelWorld : public AActor
 public:
 	
 	AVoxelWorld();
-	
-	virtual void OnConstruction(const FTransform& Transform) override;
 	
 	virtual void Tick(float DeltaTime) override;
 	
@@ -43,25 +40,31 @@ private:
 	UPROPERTY()
 	TMap<FIntVector2, TObjectPtr<USectorComponent>> SectorComponentMap;
 	
-	bool CellCoordinateIsValid(FIntVector3 CellCoordinate);
-	bool SectorCoordinateIsValid(FIntVector2 SectorCoordinate);
+	static bool CellCoordinateIsValid(const FIntVector& CellCoordinate);
+	static bool SectorCoordinateIsValid(const FIntVector2& SectorCoordinate);
 	
-	FIntVector2 SectorIndexToSectorCoordinate(uint32 SectorIndex);
+	static FIntVector2 SectorIndexToSectorCoordinate(uint32 SectorIndex);
 	
-	int32 SectorCoordinateToSectorIndex(FIntVector2 SectorCoordinate);
-	FIntVector3 SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate);
+	static int32 SectorCoordinateToSectorIndex(const FIntVector2& SectorCoordinate);
+	static FIntVector SectorCoordinateToCellCoordinate(const FIntVector2& SectorCoordinate);
 	
-	int32 CellCoordinateToSectorIndex(FIntVector3 CellCoordinate);
+	static int32 CellCoordinateToSectorIndex(const FIntVector& CellCoordinate);
 	
-	int32 CellCoordinateToCellIndex(FIntVector3 CellCoordinate);
-	FIntVector3 CellIndexToCellCoordinate(int32 CellIndex);
+	static int32 CellCoordinateToCellIndex(const FIntVector& CellCoordinate);
+	static FIntVector CellIndexToCellCoordinate(int32 CellIndex);
 	
-	FIntVector3 WorldLocationToCellCoordinate(FVector WorldLocation);
-	FIntVector2 WorldLocationToSectorCoordinate(FVector WorldLocation);
+	UFUNCTION(BlueprintPure, Category="Voxel")
+	static FIntVector WorldLocationToCellCoordinate(const FVector& WorldLocation);
 	
-	FCell& GetCell(FIntVector3 CellCoordinate);
+	UFUNCTION(BlueprintPure, Category="Voxel")
+	static FIntVector2 WorldLocationToSectorCoordinate(const FVector& WorldLocation);
+	
+	FCell& GetCell(const FIntVector& CellCoordinate);
 	
 	void GenerateWorld();
+
+	void InitPlayer();
+	void InitSectorCache();	
 	
 	void BuildSectorMeshes();
 	FSectorMesh BuildSectorMesh(int32 SectorIndex);
@@ -71,5 +74,5 @@ private:
 	void AddSectorComponent(const FIntVector2& SectorCoordinate);
 	void RemoveSectorComponent(const FIntVector2& SectorCoordinate);
 	
-	uint8 CalculateNeighborSet(const FCell& Block);
+	uint8 CalculateNeighborSet(const FCell& Cell);
 };

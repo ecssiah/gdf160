@@ -1,11 +1,6 @@
 #include "VoxelWorld.h"
 
-#include "BlockKind.h"
-#include "CartesianDirection.h"
-#include "Constants.h"
-#include "SectorMesh.h"
 #include "Kismet/GameplayStatics.h"
-
 #include "FastNoiseLite/FastNoiseLite.h"
 
 AVoxelWorld::AVoxelWorld()
@@ -18,51 +13,15 @@ AVoxelWorld::AVoxelWorld()
 }
 
 void 
-AVoxelWorld::OnConstruction(const FTransform& Transform)
-{
-	Super::OnConstruction(Transform);
-}
-
-void 
 AVoxelWorld::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	const FVector StartLocation = FVector(
-		WorldSizeInCellsX / 2.0f * CellSizeInCentimeters,
-		WorldSizeInCellsY / 2.0f * CellSizeInCentimeters,
-		2000.0
-	);
-	
-	PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-	
-	PlayerPawn->SetActorLocation(StartLocation);
-
-	PlayerSectorCoordinate = { -1, -1 };
-	
-	SetActorLocation(FVector::ZeroVector);
+	InitPlayer();
+	InitSectorCache();
 	
 	GenerateWorld();
-	
 	BuildSectorMeshes();
-	
-	const int32 SectorCacheSize = FMath::Pow(2.0f * SectorViewRange + 1, 2);
-	
-	for (int32 CacheIndex = 0; CacheIndex < SectorCacheSize; CacheIndex++)
-	{
-		const FString ComponentName = FString::Printf(TEXT("SectorMesh_%d"), FreeSectorComponentArray.Num() + 1);
-			
-		USectorComponent* SectorComponent = NewObject<USectorComponent>(this, *ComponentName);
-		
-		SectorComponent->AttachToComponent(
-			RootComponent,
-			FAttachmentTransformRules::KeepRelativeTransform
-		);
-		
-		SectorComponent->SetMaterial(0, BlockMaterial);
-		
-		FreeSectorComponentArray.Add(SectorComponent);
-	}
 	
 	UpdateSectorComponents();
 }
@@ -75,10 +34,9 @@ AVoxelWorld::Tick(float DeltaTime)
 	if (PlayerPawn)
 	{
 		const FVector PlayerLocation = PlayerPawn->GetActorLocation();
-		
 		const FIntVector2 SectorCoordinate = WorldLocationToSectorCoordinate(PlayerLocation);
 		
-		if (PlayerSectorCoordinate != SectorCoordinate)
+		if (SectorCoordinate != PlayerSectorCoordinate)
 		{
 			PlayerSectorCoordinate = SectorCoordinate;
 			
@@ -88,7 +46,7 @@ AVoxelWorld::Tick(float DeltaTime)
 }
 
 bool
-AVoxelWorld::CellCoordinateIsValid(FIntVector3 CellCoordinate)
+AVoxelWorld::CellCoordinateIsValid(const FIntVector& CellCoordinate)
 {
 	return (
 		CellCoordinate.X >= 0 && CellCoordinate.X < WorldSizeInCellsX &&
@@ -98,7 +56,7 @@ AVoxelWorld::CellCoordinateIsValid(FIntVector3 CellCoordinate)
 }
 
 bool 
-AVoxelWorld::SectorCoordinateIsValid(FIntVector2 SectorCoordinate)
+AVoxelWorld::SectorCoordinateIsValid(const FIntVector2& SectorCoordinate)
 {
 	return (
 		SectorCoordinate.X >= 0 && SectorCoordinate.X < WorldSizeInSectorsX &&
@@ -116,13 +74,13 @@ AVoxelWorld::SectorIndexToSectorCoordinate(uint32 SectorIndex)
 }
 
 int32
-AVoxelWorld::SectorCoordinateToSectorIndex(const FIntVector2 SectorCoordinate)
+AVoxelWorld::SectorCoordinateToSectorIndex(const FIntVector2& SectorCoordinate)
 {
 	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
 }
 
 int32
-AVoxelWorld::CellCoordinateToSectorIndex(FIntVector3 CellCoordinate)
+AVoxelWorld::CellCoordinateToSectorIndex(const FIntVector& CellCoordinate)
 {
 	const FIntVector2 SectorCoordinate = {
 		CellCoordinate.X >> SectorSizeInCellsXLog2,
@@ -133,13 +91,13 @@ AVoxelWorld::CellCoordinateToSectorIndex(FIntVector3 CellCoordinate)
 }
 
 int32
-AVoxelWorld::CellCoordinateToCellIndex(FIntVector3 CellCoordinate)
+AVoxelWorld::CellCoordinateToCellIndex(const FIntVector& CellCoordinate)
 {
 	return CellCoordinate.X * WorldStrideX + CellCoordinate.Y * WorldStrideY + CellCoordinate.Z * WorldStrideZ;
 }
 
-FIntVector3 
-AVoxelWorld::SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate)
+FIntVector 
+AVoxelWorld::SectorCoordinateToCellCoordinate(const FIntVector2& SectorCoordinate)
 {
 	return {
 		SectorCoordinate.X * SectorSizeInCellsX,
@@ -148,15 +106,13 @@ AVoxelWorld::SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate)
 	};
 }
 
-FIntVector3 
+FIntVector 
 AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
 {
 	const int32 CellZ = CellIndex / WorldStrideZ;
-
 	CellIndex -= CellZ * WorldStrideZ;
 
 	const int32 CellY = CellIndex / WorldStrideY;
-
 	CellIndex -= CellY * WorldStrideY;
 
 	const int32 CellX = CellIndex / WorldStrideX;
@@ -164,8 +120,8 @@ AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
 	return { CellX, CellY, CellZ };
 }
 
-FIntVector3 
-AVoxelWorld::WorldLocationToCellCoordinate(FVector WorldLocation)
+FIntVector 
+AVoxelWorld::WorldLocationToCellCoordinate(const FVector& WorldLocation)
 {
 	return {
 		FMath::FloorToInt32(WorldLocation.X / CellSizeInCentimeters),
@@ -175,7 +131,7 @@ AVoxelWorld::WorldLocationToCellCoordinate(FVector WorldLocation)
 }
 
 FIntVector2
-AVoxelWorld::WorldLocationToSectorCoordinate(FVector WorldLocation)
+AVoxelWorld::WorldLocationToSectorCoordinate(const FVector& WorldLocation)
 {
 	const FIntVector CellCoordinate = WorldLocationToCellCoordinate(WorldLocation);
 
@@ -186,11 +142,51 @@ AVoxelWorld::WorldLocationToSectorCoordinate(FVector WorldLocation)
 }
 
 FCell& 
-AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
+AVoxelWorld::GetCell(const FIntVector& CellCoordinate)
 {
 	const int32 CellIndex = CellCoordinateToCellIndex(CellCoordinate);
 	
 	return CellArray[CellIndex];
+}
+
+void
+AVoxelWorld::InitPlayer()
+{
+	const FVector StartLocation = {
+		WorldSizeInCellsX / 2.0f * CellSizeInCentimeters,
+		WorldSizeInCellsY / 2.0f * CellSizeInCentimeters,
+		WorldSizeInCellsZ / 2.0f * CellSizeInCentimeters,
+	};
+	
+	PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+	PlayerPawn->SetActorLocation(StartLocation);
+
+	PlayerSectorCoordinate = { -1, -1 };
+	
+	SetActorLocation(FVector::ZeroVector);
+}
+
+void 
+AVoxelWorld::InitSectorCache()
+{
+	const int32 SectorCacheDiameter = 2 * SectorViewRange + 1;
+	const int32 SectorCacheSize = SectorCacheDiameter * SectorCacheDiameter;
+	
+	for (int32 CacheIndex = 0; CacheIndex < SectorCacheSize; CacheIndex++)
+	{
+		const FString ComponentName = FString::Printf(TEXT("SectorMesh_%d"), FreeSectorComponentArray.Num() + 1);
+				
+		USectorComponent* SectorComponent = NewObject<USectorComponent>(this, *ComponentName);
+			
+		SectorComponent->AttachToComponent(
+			RootComponent,
+			FAttachmentTransformRules::KeepRelativeTransform
+		);
+			
+		SectorComponent->SetMaterial(0, BlockMaterial);
+			
+		FreeSectorComponentArray.Add(SectorComponent);
+	}
 }
 
 void 
@@ -207,27 +203,24 @@ AVoxelWorld::GenerateWorld()
 	HeightNoise.SetFractalLacunarity(2.0f);
 	HeightNoise.SetFractalGain(0.5f);
 	
-	constexpr int32 MinimumTerrainHeight = 4;
-	constexpr int32 MaximumTerrainHeight = 20;
-	
 	const int32 BlockKindCount = static_cast<int32>(EBlockKind::Count);
 	
 	for (int32 CellIndex = 0; CellIndex < CellArray.Num(); CellIndex++)
 	{
-		const FIntVector3 CellCoordinate = CellIndexToCellCoordinate(CellIndex);
+		const FIntVector CellCoordinate = CellIndexToCellCoordinate(CellIndex);
 		
 		const float NoiseValue = HeightNoise.GetNoise(
 			static_cast<float>(CellCoordinate.X),
 			static_cast<float>(CellCoordinate.Y)
 		);
 		
-		const float NormalizedNoiseValue = (NoiseValue + 1.0f) * 0.5f;
+		const float NoiseValueNormalized = (NoiseValue + 1.0f) * 0.5f;
 		
 		const int32 TerrainHeight = FMath::RoundToInt32(
 			FMath::Lerp(
-				static_cast<float>(MinimumTerrainHeight),
-				static_cast<float>(MaximumTerrainHeight),
-				NormalizedNoiseValue
+				static_cast<float>(TerrainHeightMin),
+				static_cast<float>(TerrainHeightMax),
+				NoiseValueNormalized
 			)
 		);
 		
@@ -259,9 +252,9 @@ AVoxelWorld::CalculateNeighborSet(const FCell& Cell)
 	for (const ECartesianDirection Direction : TEnumRange<ECartesianDirection>())
 	{
 		const int32 DirectionIndex = static_cast<int32>(Direction);
-		const FIntVector3 DirectionOffset = DirectionOffsets[DirectionIndex];
+		const FIntVector DirectionOffset = CartesianDirectionOffsets[DirectionIndex];
 		
-		const FIntVector3 TestCellPosition = CellIndexToCellCoordinate(Cell.CellIndex) + DirectionOffset;
+		const FIntVector TestCellPosition = CellIndexToCellCoordinate(Cell.CellIndex) + DirectionOffset;
 		
 		if (CellCoordinateIsValid(TestCellPosition))
 		{
@@ -299,7 +292,7 @@ AVoxelWorld::BuildSectorMesh(const int32 SectorIndex)
 	};
 	
 	const FIntVector2 SectorCoordinate = SectorIndexToSectorCoordinate(SectorIndex);
-	const FIntVector3 SectorCellCoordinate = SectorCoordinateToCellCoordinate(SectorCoordinate);
+	const FIntVector SectorCellCoordinate = SectorCoordinateToCellCoordinate(SectorCoordinate);
 	
 	for (int32 CellZ = 0; CellZ < SectorSizeInCellsZ; CellZ++)
 	{
@@ -307,7 +300,7 @@ AVoxelWorld::BuildSectorMesh(const int32 SectorIndex)
 		{
 			for (int32 CellX = SectorCellCoordinate.X; CellX < SectorCellCoordinate.X + SectorSizeInCellsX; CellX++)
 			{
-				const FIntVector3 CellCoordinate = { CellX, CellY, CellZ };
+				const FIntVector CellCoordinate = { CellX, CellY, CellZ };
 				
 				if (CellCoordinateIsValid(CellCoordinate))
 				{

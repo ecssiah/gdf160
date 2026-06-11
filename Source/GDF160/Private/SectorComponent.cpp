@@ -1,8 +1,5 @@
 #include "SectorComponent.h"
 
-#include "Cell.h"
-#include "Constants.h"
-
 FDynamicMesh3
 USectorComponent::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 {
