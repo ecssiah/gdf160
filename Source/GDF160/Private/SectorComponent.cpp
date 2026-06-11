@@ -16,11 +16,7 @@ USectorComponent::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 		
 		const int32 DirectionIndex = static_cast<int32>(SectorFace.Direction);
 		
-		const FVector3d CellPosition = { 
-			static_cast<double>(SectorFace.CellCoordinate[0]), 
-			static_cast<double>(SectorFace.CellCoordinate[1]), 
-			static_cast<double>(SectorFace.CellCoordinate[2]),
-		};
+		const FVector CellPosition = FVector(SectorFace.CellCoordinate);
 		
 		const float (&VertexArray)[4][3] = VoxelVertexArray[DirectionIndex];
 		
@@ -61,7 +57,7 @@ USectorComponent::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 		const FVector2f UVCoordinate = BlockKindToUVCoordinate(SectorFace.BlockKind);
 
 		const FVector2f UVPosition0 = { 
-			UVCoordinate.X,
+			UVCoordinate.X + 0.0f,
 			UVCoordinate.Y + TileSizeV,
 		};
 		
@@ -72,12 +68,12 @@ USectorComponent::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 		
 		const FVector2f UVPosition2 = { 
 			UVCoordinate.X + TileSizeU,
-			UVCoordinate.Y,
+			UVCoordinate.Y + 0.0f,
 		};
 		
 		const FVector2f UVPosition3 = { 
-			UVCoordinate.X,
-			UVCoordinate.Y,
+			UVCoordinate.X + 0.0f,
+			UVCoordinate.Y + 0.0f,
 		};
 		
 		const int32 UVIndex0 = UVOverlay->AppendElement(UVPosition0);
@@ -85,8 +81,15 @@ USectorComponent::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 		const int32 UVIndex2 = UVOverlay->AppendElement(UVPosition2);
 		const int32 UVIndex3 = UVOverlay->AppendElement(UVPosition3);
 	
-		UVOverlay->SetTriangle(TriangleIndex0, UE::Geometry::FIndex3i(UVIndex0, UVIndex1, UVIndex2));
-		UVOverlay->SetTriangle(TriangleIndex1, UE::Geometry::FIndex3i(UVIndex0, UVIndex2, UVIndex3));
+		UVOverlay->SetTriangle(
+			TriangleIndex0, 
+			UE::Geometry::FIndex3i(UVIndex0, UVIndex1, UVIndex2)
+		);
+		
+		UVOverlay->SetTriangle(
+			TriangleIndex1, 
+			UE::Geometry::FIndex3i(UVIndex0, UVIndex2, UVIndex3)
+		);
 	}
 
 	return DynamicMesh;
@@ -95,10 +98,12 @@ USectorComponent::BuildDynamicMesh(const FSectorMesh& SectorMesh)
 FVector2f 
 USectorComponent::BlockKindToUVCoordinate(EBlockKind BlockKind)
 {
-	const int32 BlockKindIndex = static_cast<int32>(BlockKind) - 1;
-	
+	checkf(BlockKind != EBlockKind::None, TEXT("BlockKind::None has no UV coordinates"));
+
+	const int32 BlockKindIndex = static_cast<int32>(BlockKind);
+		
 	return {
-		static_cast<float>(BlockKindIndex % TileAtlasSizeU) / TileAtlasSizeU,
-		static_cast<float>(BlockKindIndex / TileAtlasSizeU) / TileAtlasSizeV,
+		static_cast<float>((BlockKindIndex - 1) % TileAtlasSizeU) / TileAtlasSizeU,
+		static_cast<float>((BlockKindIndex - 1) / TileAtlasSizeU) / TileAtlasSizeV,
 	};
 }
