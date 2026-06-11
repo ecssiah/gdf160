@@ -380,15 +380,14 @@ AVoxelWorld::UpdateSectorComponents()
 void
 AVoxelWorld::RemoveSectorComponent(const FIntVector2& SectorCoordinate)
 {
-	TObjectPtr<USectorComponent>* FoundComponent = SectorComponentMap.Find(SectorCoordinate);
+	const TObjectPtr<USectorComponent>* FoundComponent = SectorComponentMap.Find(SectorCoordinate);
 		
-	if (FoundComponent && *FoundComponent)
+	if (FoundComponent)
 	{
 		USectorComponent* SectorComponent = *FoundComponent;
 			
 		SectorComponent->SetVisibility(false);
 		SectorComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			
 		SectorComponent->UnregisterComponent();
 			
 		FreeSectorComponentArray.Add(SectorComponent);
@@ -401,19 +400,17 @@ AVoxelWorld::AddSectorComponent(const FIntVector2& SectorCoordinate)
 {
 	const int32 SectorIndex = SectorCoordinateToSectorIndex(SectorCoordinate);
 	const FSectorMesh& SectorMesh = SectorMeshArray[SectorIndex];
-		
+	
 	USectorComponent* SectorComponent = FreeSectorComponentArray.Pop();
-		
+	
+	FDynamicMesh3 DynamicMesh = USectorComponent::BuildDynamicMesh(SectorMesh);
+	
 	SectorComponent->RegisterComponent();
-
 	SectorComponent->SetVisibility(true);
 	SectorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	SectorComponent->SetCollisionObjectType(ECC_WorldStatic);
 	SectorComponent->SetCollisionResponseToAllChannels(ECR_Block);
-
 	SectorComponent->SetComplexAsSimpleCollisionEnabled(true, true);
-	
-	FDynamicMesh3 DynamicMesh = USectorComponent::BuildDynamicMesh(SectorMesh);
 	SectorComponent->GetDynamicMesh()->SetMesh(MoveTemp(DynamicMesh));
 	SectorComponent->NotifyMeshUpdated();
 		
