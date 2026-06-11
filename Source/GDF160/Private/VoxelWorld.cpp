@@ -135,10 +135,6 @@ AVoxelWorld::CellCoordinateToSectorIndex(FIntVector3 CellCoordinate)
 int32
 AVoxelWorld::CellCoordinateToCellIndex(FIntVector3 CellCoordinate)
 {
-	const uint32 WorldStrideX = 1;
-	const uint32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
-	const uint32 WorldStrideZ = WorldStrideY * (WorldSizeInSectorsY * SectorSizeInCellsY);
-	
 	return CellCoordinate.X * WorldStrideX + CellCoordinate.Y * WorldStrideY + CellCoordinate.Z * WorldStrideZ;
 }
 
@@ -155,9 +151,6 @@ AVoxelWorld::SectorCoordinateToCellCoordinate(FIntVector2 SectorCoordinate)
 FIntVector3 
 AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
 {
-	const int32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
-	const int32 WorldStrideZ = WorldSizeInSectorsX * SectorSizeInCellsX * WorldSizeInSectorsY * SectorSizeInCellsY;
-	
 	const int32 CellZ = CellIndex / WorldStrideZ;
 
 	CellIndex -= CellZ * WorldStrideZ;
@@ -166,7 +159,7 @@ AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
 
 	CellIndex -= CellY * WorldStrideY;
 
-	const int32 CellX = CellIndex;
+	const int32 CellX = CellIndex / WorldStrideX;
 
 	return { CellX, CellY, CellZ };
 }
@@ -191,7 +184,6 @@ AVoxelWorld::WorldLocationToSectorCoordinate(FVector WorldLocation)
 		CellCoordinate.Y >> SectorSizeInCellsYLog2,
 	};
 }
-
 
 FCell& 
 AVoxelWorld::GetCell(FIntVector3 CellCoordinate)
@@ -241,12 +233,16 @@ AVoxelWorld::GenerateWorld()
 		
 		FCell& Cell = CellArray[CellIndex];
 		
-		const EBlockKind BlockKind = static_cast<EBlockKind>(FMath::RandRange(1, BlockKindCount - 1));
-		
 		Cell.CellIndex = CellIndex;
-		Cell.BlockKind = CellCoordinate.Z <= TerrainHeight
-			? BlockKind
-			: EBlockKind::None;
+		
+		if (CellCoordinate.Z <= TerrainHeight)
+		{
+			Cell.BlockKind = static_cast<EBlockKind>(FMath::RandRange(1, BlockKindCount - 1));
+		}
+		else
+		{
+			Cell.BlockKind = EBlockKind::None;
+		}
 	}
 	
 	for (FCell& Cell : CellArray)
