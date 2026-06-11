@@ -197,11 +197,11 @@ AVoxelWorld::GenerateWorld()
 	FastNoiseLite HeightNoise;
 	HeightNoise.SetSeed(1337);
 	HeightNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-	HeightNoise.SetFrequency(0.03f);
+	HeightNoise.SetFrequency(1.0f / TerrainNoisePeriod);
 	HeightNoise.SetFractalType(FastNoiseLite::FractalType_FBm);
-	HeightNoise.SetFractalOctaves(4);
-	HeightNoise.SetFractalLacunarity(2.0f);
-	HeightNoise.SetFractalGain(0.5f);
+	HeightNoise.SetFractalOctaves(3);
+	HeightNoise.SetFractalLacunarity(3.0f);
+	HeightNoise.SetFractalGain(0.7f);
 	
 	const int32 BlockKindCount = static_cast<int32>(EBlockKind::Count);
 	
@@ -302,27 +302,31 @@ AVoxelWorld::BuildSectorMesh(const int32 SectorIndex)
 			{
 				const FIntVector CellCoordinate = { CellX, CellY, CellZ };
 				
-				if (CellCoordinateIsValid(CellCoordinate))
+				if (!CellCoordinateIsValid(CellCoordinate))
 				{
-					const FCell& Cell = GetCell(CellCoordinate);
+					continue;
+				}
+				
+				const FCell& Cell = GetCell(CellCoordinate);
 
-					if (Cell.BlockKind == EBlockKind::None)
-					{
-						continue;
-					}
+				if (Cell.BlockKind == EBlockKind::None)
+				{
+					continue;
+				}
+				
+				for (const ECartesianDirection& Direction : TEnumRange<ECartesianDirection>())
+				{
+					const int32 DirectionIndex = static_cast<int32>(Direction);
 					
-					for (int32 DirectionIndex = 0; DirectionIndex < static_cast<int32>(ECartesianDirection::Count); DirectionIndex++)
+					if ((Cell.NeighborSet & (1 << DirectionIndex)) == 0)
 					{
-						if ((Cell.NeighborSet & (1 << DirectionIndex)) == 0)
-						{
-							FSectorFace SectorFace = {
-								.BlockKind = Cell.BlockKind,
-								.Direction = static_cast<ECartesianDirection>(DirectionIndex),
-								.CellCoordinate = CellCoordinate,
-							};
-							
-							SectorMesh.SectorFaceArray.Add(SectorFace);
-						}
+						const FSectorFace SectorFace = {
+							.BlockKind = Cell.BlockKind,
+							.Direction = Direction,
+							.CellCoordinate = CellCoordinate,
+						};
+						
+						SectorMesh.SectorFaceArray.Add(SectorFace);
 					}
 				}
 			}

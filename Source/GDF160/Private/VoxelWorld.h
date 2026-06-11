@@ -33,11 +33,7 @@ private:
 	
 	TArray<FCell> CellArray;
 	TArray<FSectorMesh> SectorMeshArray;
-	
-	UPROPERTY()
 	TArray<TObjectPtr<USectorComponent>> FreeSectorComponentArray;
-	
-	UPROPERTY()
 	TMap<FIntVector2, TObjectPtr<USectorComponent>> SectorComponentMap;
 	
 	static bool CellCoordinateIsValid(const FIntVector& CellCoordinate);

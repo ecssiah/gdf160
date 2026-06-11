@@ -23,18 +23,20 @@ constexpr int32 WorldAreaInSectors = WorldSizeInSectorsX * WorldSizeInSectorsY;
 
 constexpr int32 WorldSizeInCellsX = WorldSizeInSectorsX * SectorSizeInCellsX;
 constexpr int32 WorldSizeInCellsY = WorldSizeInSectorsY * SectorSizeInCellsY;
-constexpr int32 WorldSizeInCellsZ = SectorSizeInCellsX;
+constexpr int32 WorldSizeInCellsZ = SectorSizeInCellsZ;
 
 constexpr int32 WorldVolumeInCells = WorldSizeInCellsX * WorldSizeInCellsY * WorldSizeInCellsZ; 
 
 constexpr int32 WorldStrideX = 1;
-constexpr int32 WorldStrideY = WorldSizeInSectorsX * SectorSizeInCellsX;
-constexpr int32 WorldStrideZ = WorldSizeInSectorsX * SectorSizeInCellsX * WorldSizeInSectorsY * SectorSizeInCellsY;
+constexpr int32 WorldStrideY = WorldSizeInCellsX;
+constexpr int32 WorldStrideZ = WorldSizeInCellsX * WorldSizeInCellsY;
 
-constexpr int32 SectorViewRange = 1;
+constexpr int32 SectorViewRange = 2;
+
+const float TerrainNoisePeriod = 300.0f;
 
 constexpr int32 TerrainHeightMin = 4;
-constexpr int32 TerrainHeightMax = SectorSizeInCellsZ - 2;
+constexpr int32 TerrainHeightMax = WorldSizeInCellsZ - 20;
 
 constexpr int32 TileSizeInPixelsX = 64;
 constexpr int32 TileSizeInPixelsY = 64;
@@ -60,7 +62,7 @@ enum class ECartesianDirection : uint8
 
 ENUM_RANGE_BY_COUNT(ECartesianDirection, ECartesianDirection::Count)
 
-const FIntVector3 CartesianDirectionOffsets[] =
+const FIntVector CartesianDirectionOffsets[] =
 {
 	{ +1, +0, +0},
 	{ -1, +0, +0},
@@ -84,49 +86,49 @@ enum class EBlockKind : uint8
 
 const float VoxelVertexArray[6][4][3] =
 {
-	// +X Face
+	// PosX
 	{
 		{1, 1, 0}, 
 		{1, 0, 0}, 
 		{1, 0, 1},
 		{1, 1, 1},
 	},
-	// -X Face
+	// NegX
 	{
-		        {0, 0, 0}, 
-				{0, 1, 0}, 
-				{0, 1, 1},
-				{0, 0, 1},
-			},
-			// +Y Face
-			{
-		        {0, 1, 0}, 
-				{1, 1, 0}, 
-				{1, 1, 1},
-				{0, 1, 1},
-			},
-			// -Y Face
-			{
-		        {1, 0, 0}, 
-				{0, 0, 0}, 
-				{0, 0, 1},
-				{1, 0, 1},
-			},
-			// +Z Face
-			{
-		        {1, 0, 1}, 
-				{0, 0, 1}, 
-				{0, 1, 1},
-				{1, 1, 1},
-			},
-			// -Z Face
-			{
-				{0, 0, 0},
-				{1, 0, 0},
-				{1, 1, 0}, 
-				{0, 1, 0}, 
-			},
-		};
+        {0, 0, 0}, 
+		{0, 1, 0}, 
+		{0, 1, 1},
+		{0, 0, 1},
+	},
+	// PosY
+	{
+        {0, 1, 0}, 
+		{1, 1, 0}, 
+		{1, 1, 1},
+		{0, 1, 1},
+	},
+	// NegY
+	{
+        {1, 0, 0}, 
+		{0, 0, 0}, 
+		{0, 0, 1},
+		{1, 0, 1},
+	},
+	// PosZ
+	{
+        {1, 0, 1}, 
+		{0, 0, 1}, 
+		{0, 1, 1},
+		{1, 1, 1},
+	},
+	// NegZ
+	{
+		{0, 0, 0},
+		{1, 0, 0},
+		{1, 1, 0}, 
+		{0, 1, 0}, 
+	},
+};
 
 struct FCell
 {
@@ -141,7 +143,7 @@ struct FSectorFace
 	EBlockKind BlockKind;
 	ECartesianDirection Direction;
 	
-	FIntVector3 CellCoordinate;
+	FIntVector CellCoordinate;
 };
 
 struct FSectorMesh
