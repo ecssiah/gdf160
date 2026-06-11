@@ -179,7 +179,7 @@ AVoxelWorld::InitSectorCache()
 		USectorComponent* SectorComponent = NewObject<USectorComponent>(this, *ComponentName);
 			
 		SectorComponent->AttachToComponent(
-			RootComponent,
+			RootComponent.Get(),
 			FAttachmentTransformRules::KeepRelativeTransform
 		);
 			
@@ -230,7 +230,9 @@ AVoxelWorld::GenerateWorld()
 		
 		if (CellCoordinate.Z <= TerrainHeight)
 		{
-			Cell.BlockKind = static_cast<EBlockKind>(FMath::RandRange(1, BlockKindCount - 1));
+			const int32 BlockKindIndex = FMath::RandRange(1, BlockKindCount - 1);
+			
+			Cell.BlockKind = static_cast<EBlockKind>(BlockKindIndex);
 		}
 		else
 		{
@@ -254,11 +256,11 @@ AVoxelWorld::CalculateNeighborSet(const FCell& Cell)
 		const int32 DirectionIndex = static_cast<int32>(Direction);
 		const FIntVector DirectionOffset = CartesianDirectionOffsets[DirectionIndex];
 		
-		const FIntVector TestCellPosition = CellIndexToCellCoordinate(Cell.CellIndex) + DirectionOffset;
+		const FIntVector TestCellCoordinate = CellIndexToCellCoordinate(Cell.CellIndex) + DirectionOffset;
 		
-		if (CellCoordinateIsValid(TestCellPosition))
+		if (CellCoordinateIsValid(TestCellCoordinate))
 		{
-			const FCell& TestBlock = GetCell(TestCellPosition);
+			const FCell& TestBlock = GetCell(TestCellCoordinate);
 			
 			if (TestBlock.BlockKind != EBlockKind::None)
 			{
