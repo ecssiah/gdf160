@@ -28,8 +28,6 @@ constexpr int32 WorldStrideX = 1;
 constexpr int32 WorldStrideY = WorldSizeInCellsX;
 constexpr int32 WorldStrideZ = WorldSizeInCellsX * WorldSizeInCellsY;
 
-constexpr int32 SectorViewRange = 2;
-
 const float TerrainNoisePeriod = 300.0f;
 
 constexpr int32 TerrainHeightMin = 4;
@@ -43,6 +41,8 @@ constexpr int32 TileAtlasSizeV = 4;
 
 constexpr float TileSizeU = 1.0f / static_cast<float>(TileAtlasSizeU);
 constexpr float TileSizeV = 1.0f / static_cast<float>(TileAtlasSizeV);
+
+constexpr int32 SectorViewRange = 2;
 
 UENUM()
 enum class EAxisDirection : uint8

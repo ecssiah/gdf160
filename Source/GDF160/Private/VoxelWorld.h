@@ -9,6 +9,7 @@
 UCLASS()
 class GDF160_API AVoxelWorld : public AActor
 {
+	
 	GENERATED_BODY()
 
 public:
@@ -34,11 +35,14 @@ protected:
 
 private:
 	
+	float PlayerLocationOffset;
+	
 	FIntVector PlayerCellCoordinate;
 	FIntVector2 PlayerSectorCoordinate;
 	
 	TArray<FCell> CellArray;
 	TArray<FSectorMesh> SectorMeshArray;
+	
 	TArray<TObjectPtr<USectorComponent>> FreeSectorComponentArray;
 	TMap<FIntVector2, TObjectPtr<USectorComponent>> SectorComponentMap;
 	
@@ -52,8 +56,7 @@ private:
 	
 	static FIntVector CellIndexToCellCoordinate(int32 CellIndex);
 	static int32 CellCoordinateToCellIndex(const FIntVector& CellCoordinate);
-	static int32 CellCoordinateToSectorIndex(const FIntVector& CellCoordinate);
-	
+
 	static FIntVector WorldLocationToCellCoordinate(const FVector& WorldLocation);
 	static FIntVector2 WorldLocationToSectorCoordinate(const FVector& WorldLocation);
 	

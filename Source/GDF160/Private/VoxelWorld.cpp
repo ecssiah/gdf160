@@ -1,5 +1,7 @@
 #include "VoxelWorld.h"
 
+#include "GameFramework/Character.h"
+#include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "FastNoiseLite/FastNoiseLite.h"
 
@@ -17,6 +19,8 @@ AVoxelWorld::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	SetActorLocation(FVector::ZeroVector);
+	
 	InitPlayer();
 	InitSectorCache();
 	
@@ -33,7 +37,8 @@ AVoxelWorld::Tick(float DeltaTime)
 
 	if (PlayerPawn)
 	{
-		const FVector PlayerLocation = PlayerPawn->GetActorLocation();
+		FVector PlayerLocation = PlayerPawn->GetActorLocation();
+		PlayerLocation.Z -= PlayerLocationOffset;
 		
 		PlayerCellCoordinate = WorldLocationToCellCoordinate(PlayerLocation);
 		
@@ -126,17 +131,6 @@ AVoxelWorld::CellCoordinateToCellIndex(const FIntVector& CellCoordinate)
 	);
 }
 
-int32
-AVoxelWorld::CellCoordinateToSectorIndex(const FIntVector& CellCoordinate)
-{
-	const FIntVector2 SectorCoordinate = {
-		CellCoordinate.X >> SectorSizeInCellsXLog2,
-		CellCoordinate.Y >> SectorSizeInCellsYLog2,
-	};
-	
-	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
-}
-
 FIntVector 
 AVoxelWorld::WorldLocationToCellCoordinate(const FVector& WorldLocation)
 {
@@ -175,12 +169,27 @@ AVoxelWorld::InitPlayer()
 		WorldSizeInCellsZ / 2.0f * CellSizeInCentimeters,
 	};
 	
-	PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-	PlayerPawn->SetActorLocation(StartLocation);
-
 	PlayerSectorCoordinate = { -1, -1 };
 	
-	SetActorLocation(FVector::ZeroVector);
+	PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+	
+	if (PlayerPawn)
+	{
+		PlayerPawn->SetActorLocation(StartLocation);
+		
+		const ACharacter* PlayerCharacter = Cast<ACharacter>(PlayerPawn);
+
+		if (PlayerCharacter)
+		{
+			const float CapsuleHalfHeight = PlayerCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+			
+			PlayerLocationOffset = CapsuleHalfHeight + 0.5f * CellSizeInCentimeters;
+		}
+		else
+		{
+			PlayerLocationOffset = 0.0f;		
+		}
+	}
 }
 
 void 
