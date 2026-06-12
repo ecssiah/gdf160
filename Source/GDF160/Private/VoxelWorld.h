@@ -15,20 +15,26 @@ public:
 	
 	AVoxelWorld();
 	
-	virtual void Tick(float DeltaTime) override;
-	
 	UPROPERTY()
 	APawn* PlayerPawn;
 	
 	UPROPERTY(EditAnywhere)
 	UMaterialInterface* BlockMaterial;
+	
+	UFUNCTION(BlueprintPure, Category="Voxel")
+	FIntVector GetPlayerCellCoordinate() const;
+	
+	UFUNCTION(BlueprintPure, Category="Voxel")
+	FIntVector2 GetPlayerSectorCoordinate() const;
 
 protected:
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 
 private:
 	
+	FIntVector PlayerCellCoordinate;
 	FIntVector2 PlayerSectorCoordinate;
 	
 	TArray<FCell> CellArray;
@@ -49,10 +55,7 @@ private:
 	static int32 CellCoordinateToCellIndex(const FIntVector& CellCoordinate);
 	static FIntVector CellIndexToCellCoordinate(int32 CellIndex);
 	
-	UFUNCTION(BlueprintPure, Category="Voxel")
 	static FIntVector WorldLocationToCellCoordinate(const FVector& WorldLocation);
-	
-	UFUNCTION(BlueprintPure, Category="Voxel")
 	static FIntVector2 WorldLocationToSectorCoordinate(const FVector& WorldLocation);
 	
 	FCell& GetCell(const FIntVector& CellCoordinate);

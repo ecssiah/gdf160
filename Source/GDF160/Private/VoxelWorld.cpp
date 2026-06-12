@@ -34,6 +34,9 @@ AVoxelWorld::Tick(float DeltaTime)
 	if (PlayerPawn)
 	{
 		const FVector PlayerLocation = PlayerPawn->GetActorLocation();
+		
+		PlayerCellCoordinate = WorldLocationToCellCoordinate(PlayerLocation);
+		
 		const FIntVector2 SectorCoordinate = WorldLocationToSectorCoordinate(PlayerLocation);
 		
 		if (SectorCoordinate != PlayerSectorCoordinate)
@@ -43,6 +46,16 @@ AVoxelWorld::Tick(float DeltaTime)
 			UpdateSectorComponents();
 		}
 	}
+}
+
+FIntVector AVoxelWorld::GetPlayerCellCoordinate() const
+{
+	return PlayerCellCoordinate;
+}
+	
+FIntVector2 AVoxelWorld::GetPlayerSectorCoordinate() const
+{
+	return PlayerSectorCoordinate;
 }
 
 bool
