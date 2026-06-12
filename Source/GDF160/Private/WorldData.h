@@ -10,9 +10,6 @@ constexpr int32 SectorSizeInCellsX = 1 << SectorSizeInCellsXLog2;
 constexpr int32 SectorSizeInCellsY = 1 << SectorSizeInCellsYLog2;
 constexpr int32 SectorSizeInCellsZ = 1 << SectorSizeInCellsZLog2;
 
-constexpr int32 SectorAreaInCells = SectorSizeInCellsX * SectorSizeInCellsY;
-constexpr int32 SectorVolumeInCells = SectorSizeInCellsX * SectorSizeInCellsY * SectorSizeInCellsZ;
-
 constexpr int32 WorldSizeInSectorsXLog2 = 4;
 constexpr int32 WorldSizeInSectorsYLog2 = 4;
 
@@ -21,8 +18,8 @@ constexpr int32 WorldSizeInSectorsY = 1 << WorldSizeInSectorsYLog2;
 
 constexpr int32 WorldAreaInSectors = WorldSizeInSectorsX * WorldSizeInSectorsY;
 
-constexpr int32 WorldSizeInCellsX = WorldSizeInSectorsX * SectorSizeInCellsX;
-constexpr int32 WorldSizeInCellsY = WorldSizeInSectorsY * SectorSizeInCellsY;
+constexpr int32 WorldSizeInCellsX = SectorSizeInCellsX * WorldSizeInSectorsX;
+constexpr int32 WorldSizeInCellsY = SectorSizeInCellsY * WorldSizeInSectorsY;
 constexpr int32 WorldSizeInCellsZ = SectorSizeInCellsZ;
 
 constexpr int32 WorldVolumeInCells = WorldSizeInCellsX * WorldSizeInCellsY * WorldSizeInCellsZ; 
@@ -64,12 +61,12 @@ ENUM_RANGE_BY_COUNT(EAxisDirection, EAxisDirection::Count)
 
 const FIntVector AxisDirectionOffsets[] =
 {
-	{ +1, +0, +0},
-	{ -1, +0, +0},
-	{ +0, +1, +0},
-	{ +0, -1, +0},
-	{ +0, +0, +1},
-	{ +0, +0, -1},
+	{ +1, +0, +0 },
+	{ -1, +0, +0 },
+	{ +0, +1, +0 },
+	{ +0, -1, +0 },
+	{ +0, +0, +1 },
+	{ +0, +0, -1 },
 };
 
 UENUM()
@@ -86,47 +83,41 @@ enum class EBlockKind : uint8
 
 const float VoxelVertexArray[6][4][3] =
 {
-	// PosX
 	{
-		{1, 1, 0}, 
-		{1, 0, 0}, 
-		{1, 0, 1},
-		{1, 1, 1},
+		{ 1, 1, 0 }, 
+		{ 1, 0, 0 }, 
+		{ 1, 0, 1 },
+		{ 1, 1, 1 },
 	},
-	// NegX
 	{
-        {0, 0, 0}, 
-		{0, 1, 0}, 
-		{0, 1, 1},
-		{0, 0, 1},
+        { 0, 0, 0 }, 
+		{ 0, 1, 0 }, 
+		{ 0, 1, 1 },
+		{ 0, 0, 1 },
 	},
-	// PosY
 	{
-        {0, 1, 0}, 
-		{1, 1, 0}, 
-		{1, 1, 1},
-		{0, 1, 1},
+        { 0, 1, 0 }, 
+		{ 1, 1, 0 }, 
+		{ 1, 1, 1 },
+		{ 0, 1, 1 },
 	},
-	// NegY
 	{
-        {1, 0, 0}, 
-		{0, 0, 0}, 
-		{0, 0, 1},
-		{1, 0, 1},
+        { 1, 0, 0 }, 
+		{ 0, 0, 0 }, 
+		{ 0, 0, 1 },
+		{ 1, 0, 1 },
 	},
-	// PosZ
 	{
-        {1, 0, 1}, 
-		{0, 0, 1}, 
-		{0, 1, 1},
-		{1, 1, 1},
+        { 1, 0, 1 }, 
+		{ 0, 0, 1 }, 
+		{ 0, 1, 1 },
+		{ 1, 1, 1 },
 	},
-	// NegZ
 	{
-		{0, 0, 0},
-		{1, 0, 0},
-		{1, 1, 0}, 
-		{0, 1, 0}, 
+		{ 0, 0, 0 },
+		{ 1, 0, 0 },
+		{ 1, 1, 0 }, 
+		{ 0, 1, 0 }, 
 	},
 };
 
