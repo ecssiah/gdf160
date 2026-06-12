@@ -92,23 +92,6 @@ AVoxelWorld::SectorCoordinateToSectorIndex(const FIntVector2& SectorCoordinate)
 	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
 }
 
-int32
-AVoxelWorld::CellCoordinateToSectorIndex(const FIntVector& CellCoordinate)
-{
-	const FIntVector2 SectorCoordinate = {
-		CellCoordinate.X >> SectorSizeInCellsXLog2,
-		CellCoordinate.Y >> SectorSizeInCellsYLog2,
-	};
-	
-	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
-}
-
-int32
-AVoxelWorld::CellCoordinateToCellIndex(const FIntVector& CellCoordinate)
-{
-	return CellCoordinate.X * WorldStrideX + CellCoordinate.Y * WorldStrideY + CellCoordinate.Z * WorldStrideZ;
-}
-
 FIntVector 
 AVoxelWorld::SectorCoordinateToCellCoordinate(const FIntVector2& SectorCoordinate)
 {
@@ -131,6 +114,27 @@ AVoxelWorld::CellIndexToCellCoordinate(int32 CellIndex)
 	const int32 CellX = CellIndex / WorldStrideX;
 
 	return { CellX, CellY, CellZ };
+}
+
+int32
+AVoxelWorld::CellCoordinateToCellIndex(const FIntVector& CellCoordinate)
+{
+	return (
+		CellCoordinate.X * WorldStrideX + 
+		CellCoordinate.Y * WorldStrideY + 
+		CellCoordinate.Z * WorldStrideZ
+	);
+}
+
+int32
+AVoxelWorld::CellCoordinateToSectorIndex(const FIntVector& CellCoordinate)
+{
+	const FIntVector2 SectorCoordinate = {
+		CellCoordinate.X >> SectorSizeInCellsXLog2,
+		CellCoordinate.Y >> SectorSizeInCellsYLog2,
+	};
+	
+	return SectorCoordinate.X + SectorCoordinate.Y * WorldSizeInSectorsX;
 }
 
 FIntVector 
@@ -259,32 +263,6 @@ AVoxelWorld::GenerateWorld()
 	}
 }
 
-uint8
-AVoxelWorld::CalculateNeighborSet(const FCell& Cell)
-{
-	uint8 NeighborSet = 0;
-	
-	for (const ECartesianDirection Direction : TEnumRange<ECartesianDirection>())
-	{
-		const int32 DirectionIndex = static_cast<int32>(Direction);
-		const FIntVector DirectionOffset = CartesianDirectionOffsets[DirectionIndex];
-		
-		const FIntVector TestCellCoordinate = CellIndexToCellCoordinate(Cell.CellIndex) + DirectionOffset;
-		
-		if (CellCoordinateIsValid(TestCellCoordinate))
-		{
-			const FCell& TestBlock = GetCell(TestCellCoordinate);
-			
-			if (TestBlock.BlockKind != EBlockKind::None)
-			{
-				NeighborSet |= (1 << DirectionIndex);
-			}
-		}
-	}
-	
-	return NeighborSet;
-}
-
 void 
 AVoxelWorld::BuildSectorMeshes()
 {
@@ -349,6 +327,32 @@ AVoxelWorld::BuildSectorMesh(const int32 SectorIndex)
 	}
 	
 	return SectorMesh;
+}
+
+uint8
+AVoxelWorld::CalculateNeighborSet(const FCell& Cell)
+{
+	uint8 NeighborSet = 0;
+	
+	for (const ECartesianDirection Direction : TEnumRange<ECartesianDirection>())
+	{
+		const int32 DirectionIndex = static_cast<int32>(Direction);
+		const FIntVector DirectionOffset = CartesianDirectionOffsets[DirectionIndex];
+		
+		const FIntVector TestCellCoordinate = CellIndexToCellCoordinate(Cell.CellIndex) + DirectionOffset;
+		
+		if (CellCoordinateIsValid(TestCellCoordinate))
+		{
+			const FCell& TestBlock = GetCell(TestCellCoordinate);
+			
+			if (TestBlock.BlockKind != EBlockKind::None)
+			{
+				NeighborSet |= (1 << DirectionIndex);
+			}
+		}
+	}
+	
+	return NeighborSet;
 }
 
 void 

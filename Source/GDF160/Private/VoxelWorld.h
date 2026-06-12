@@ -50,28 +50,27 @@ private:
 	static int32 SectorCoordinateToSectorIndex(const FIntVector2& SectorCoordinate);
 	static FIntVector SectorCoordinateToCellCoordinate(const FIntVector2& SectorCoordinate);
 	
-	static int32 CellCoordinateToSectorIndex(const FIntVector& CellCoordinate);
-	
-	static int32 CellCoordinateToCellIndex(const FIntVector& CellCoordinate);
 	static FIntVector CellIndexToCellCoordinate(int32 CellIndex);
+	static int32 CellCoordinateToCellIndex(const FIntVector& CellCoordinate);
+	static int32 CellCoordinateToSectorIndex(const FIntVector& CellCoordinate);
 	
 	static FIntVector WorldLocationToCellCoordinate(const FVector& WorldLocation);
 	static FIntVector2 WorldLocationToSectorCoordinate(const FVector& WorldLocation);
 	
 	FCell& GetCell(const FIntVector& CellCoordinate);
-	
-	void GenerateWorld();
 
 	void InitPlayer();
 	void InitSectorCache();	
 	
+	void GenerateWorld();
+	
 	void BuildSectorMeshes();
 	FSectorMesh BuildSectorMesh(int32 SectorIndex);
+	
+	uint8 CalculateNeighborSet(const FCell& Cell);
 	
 	void UpdateSectorComponents();
 	
 	void AddSectorComponent(const FIntVector2& SectorCoordinate);
 	void RemoveSectorComponent(const FIntVector2& SectorCoordinate);
-	
-	uint8 CalculateNeighborSet(const FCell& Cell);
 };
