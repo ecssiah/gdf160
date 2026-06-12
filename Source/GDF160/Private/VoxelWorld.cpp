@@ -307,7 +307,7 @@ AVoxelWorld::BuildSectorMesh(const int32 SectorIndex)
 					continue;
 				}
 				
-				for (const ECartesianDirection& Direction : TEnumRange<ECartesianDirection>())
+				for (const EAxisDirection& Direction : TEnumRange<EAxisDirection>())
 				{
 					const int32 DirectionIndex = static_cast<int32>(Direction);
 					
@@ -334,10 +334,10 @@ AVoxelWorld::CalculateNeighborSet(const FCell& Cell)
 {
 	uint8 NeighborSet = 0;
 	
-	for (const ECartesianDirection Direction : TEnumRange<ECartesianDirection>())
+	for (const EAxisDirection Direction : TEnumRange<EAxisDirection>())
 	{
 		const int32 DirectionIndex = static_cast<int32>(Direction);
-		const FIntVector DirectionOffset = CartesianDirectionOffsets[DirectionIndex];
+		const FIntVector DirectionOffset = AxisDirectionOffsets[DirectionIndex];
 		
 		const FIntVector TestCellCoordinate = CellIndexToCellCoordinate(Cell.CellIndex) + DirectionOffset;
 		

@@ -48,7 +48,7 @@ constexpr float TileSizeU = 1.0f / static_cast<float>(TileAtlasSizeU);
 constexpr float TileSizeV = 1.0f / static_cast<float>(TileAtlasSizeV);
 
 UENUM()
-enum class ECartesianDirection : uint8
+enum class EAxisDirection : uint8
 {
 	PosX,
 	NegX,
@@ -60,9 +60,9 @@ enum class ECartesianDirection : uint8
 	Count
 };
 
-ENUM_RANGE_BY_COUNT(ECartesianDirection, ECartesianDirection::Count)
+ENUM_RANGE_BY_COUNT(EAxisDirection, EAxisDirection::Count)
 
-const FIntVector CartesianDirectionOffsets[] =
+const FIntVector AxisDirectionOffsets[] =
 {
 	{ +1, +0, +0},
 	{ -1, +0, +0},
@@ -141,7 +141,7 @@ struct FCell
 struct FSectorFace
 {
 	EBlockKind BlockKind;
-	ECartesianDirection Direction;
+	EAxisDirection Direction;
 	
 	FIntVector CellCoordinate;
 };
